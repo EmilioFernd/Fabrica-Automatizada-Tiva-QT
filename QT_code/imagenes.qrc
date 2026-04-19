@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/">
+        <file>images/EngineButton.png</file>
+        <file>images/EngineButtonStart.png</file>
+        <file>images/EngineButtonStop.png</file>
+        <file>images/meltdown1.jpg</file>
+        <file>images/meltdown2.jpg</file>
+        <file>images/meltdown3.jpg</file>
+        <file>images/meltdown4.jpg</file>
+    </qresource>
+</RCC>

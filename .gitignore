@@ -1,6 +1,8 @@
 # TIVA / CCS
 TIVA_code/Debug/
 TIVA_code/Release/
+TIVA_code/Binaries/
+TIVA_code/Includes/
 
 # Qt
 QT_code/build/
