@@ -1,0 +1,18 @@
+# TIVA / CCS
+TIVA_code/Debug/
+TIVA_code/Release/
+
+# Qt
+QT_code/build/
+QT_code/Debug/
+QT_code/Release/
+
+# Binarios
+*.o
+*.obj
+*.out
+*.elf
+*.bin
+*.hex
+*.map
+
