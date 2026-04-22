@@ -16,6 +16,7 @@ typedef enum {
     MENSAJE_CONTADOR,
     MENSAJE_INICIO,
     MENSAJE_TEMPERATURA,
+    MENSAJE_ANOMALIAS,
     //etc, etc...
 } messageTypes;
 
@@ -62,7 +63,10 @@ typedef struct {
     uint32_t soldadura;
 } PACKED PARAM_MENSAJE_TEMPERATURA;
 
-
+typedef struct {
+    uint8_t bloqueado_1;
+    uint8_t bloqueado_2;
+} PACKED PARAM_MENSAJE_ANOMALIAS;
 //#pragma pack()    //...Pero solo para los mensajes que voy a intercambiar, no para el resto
 
 

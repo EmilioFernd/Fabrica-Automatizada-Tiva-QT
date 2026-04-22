@@ -151,7 +151,7 @@ static portTASK_FUNCTION( USBMessageProcessingTask, pvParameters )
     xSemaphoreTake(mutexUART, portMAX_DELAY);
     UARTprintf(
             "\n\nBienvenido a la aplicacion Fabrica Automatizada (curso 2025/26)!\n");
-    UARTprintf("\nAutores: XXXXXX y XXXXX ");
+    UARTprintf("\nAutores: HELENA POSTIGO y EMILIO FERNÁNDEZ ");
     xSemaphoreGive(mutexUART);
 
     for (;;)
@@ -486,7 +486,6 @@ int main(void)
     MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOF);
     MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_PWM1);
     MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_USB0);
-    MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOD);
     MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_ADC0);
     MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER0);
     MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOE);
@@ -552,45 +551,8 @@ int main(void)
     // Pone en marcha el planificador. La llamada NO tiene retorno
     //
 
-    if ((xTaskCreate(productoraGenerica, "Productor1", 128, &prod1,
-    tskIDLE_PRIORITY + 1,
-                     NULL) != pdPASS))
-    {
-        while (1)
-        {
 
-        }
-    }
 
-    if ((xTaskCreate(productoraGenerica, "Productor2", 128, &prod2,
-    tskIDLE_PRIORITY + 1,
-                     NULL) != pdPASS))
-    {
-        while (1)
-        {
-
-        }
-    }
-
-    if ((xTaskCreate(consumidora1, "Consumidor", 128, NULL,
-    tskIDLE_PRIORITY + 1,
-                     NULL) != pdPASS))
-    {
-        while (1)
-        {
-
-        }
-    }
-
-    if ((xTaskCreate(temperatura, "Temperatura", 128, NULL,
-                     tskIDLE_PRIORITY + 1,
-                     NULL) != pdPASS))
-    {
-        while (1)
-        {
-
-        }
-    }
 
     cola_prod_cons_1 = xQueueCreate(3, sizeof(INFO_COLA));
     if (NULL == cola_prod_cons_1)
@@ -633,6 +595,55 @@ int main(void)
         while (1)
             ;
     }
+
+    //================================================================
+    //======CREACIÓN DE TAREAS========================================
+    //================================================================
+
+
+    if ((xTaskCreate(productoraGenerica, "Productor1", 128, &prod1,
+    tskIDLE_PRIORITY + 1,
+                     NULL) != pdPASS))
+    {
+        while (1)
+        {
+
+        }
+    }
+
+    if ((xTaskCreate(productoraGenerica, "Productor2", 128, &prod2,
+    tskIDLE_PRIORITY + 1,
+                     NULL) != pdPASS))
+    {
+        while (1)
+        {
+
+        }
+    }
+
+    if ((xTaskCreate(consumidora1, "Consumidor", 128, NULL,
+    tskIDLE_PRIORITY + 1,
+                     NULL) != pdPASS))
+    {
+        while (1)
+        {
+
+        }
+    }
+
+    if ((xTaskCreate(temperatura, "Temperatura", 128, NULL,
+                     tskIDLE_PRIORITY + 1,
+                     NULL) != pdPASS))
+    {
+        while (1)
+        {
+
+        }
+    }
+
+    //================================================================
+    //======FIN DE TAREAS=============================================
+    //================================================================
 
     vTaskStartScheduler(); //el RTOS habilita las interrupciones al entrar aqui, asi que no hace falta habilitarlas
 

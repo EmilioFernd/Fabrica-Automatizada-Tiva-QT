@@ -20,6 +20,7 @@
 #include "task.h"
 #include "queue.h"
 #include "semphr.h"
+#include "event_groups.h" //FRERTOS: definiciones para grupos de eventos
 
 /* Standard TIVA includes */
 #include "inc/hw_memmap.h"
@@ -40,6 +41,21 @@
 
 #include "drivers/rgb.h"
 
+
+// ==============================================================================
+// Variable para saber el bloqueo de las productoras
+// ==============================================================================
+extern EventGroupHandle_t FlagAnomalia;
+
+
+extern SemaphoreHandle_t semaforo_prod_1;
+extern SemaphoreHandle_t semaforo_prod_2;
+
+extern volatile uint8_t g_ui8_prod1_block;
+extern volatile uint8_t g_ui8_prod2_block;
+
+#define COLA_REANUDADA_PROD_1 0x0010
+#define COLA_REANUDADA_PROD_2 0x0020
 // ==============================================================================
 // The CPU usage in percent, in 16.16 fixed point format.
 // ==============================================================================
@@ -170,6 +186,56 @@ static int Cmd_help(int argc, char *argv[])
     return(0);
 }
 
+// ==============================================================================
+// Implementa el comando reanudar
+// ==============================================================================
+static int Cmd_reanudar(int argc, char *argv[])
+{
+    int num;
+    //Verifico que numero de entradas
+    if (argc != 2)
+    {
+        UARTprintf("Uso: reanudar <1|2>\r\n");
+        return 0;
+    }
+    num = atoi(argv[1]);
+
+    switch(num)
+    {
+    case 1 :
+        if (g_ui8_prod1_block){
+            xSemaphoreGive(semaforo_prod_1);
+            xEventGroupSetBits(FlagAnomalia, COLA_REANUDADA_PROD_1);
+            UARTprintf("Intentando reanudar productora 1\r\n");
+        }
+        else
+        {
+            UARTprintf("La tarea productora 1 no estaba bloqueada \r\n");
+        }
+        break;
+
+    case 2 :
+        if (g_ui8_prod2_block){
+            xSemaphoreGive(semaforo_prod_2);
+            xEventGroupSetBits(FlagAnomalia, COLA_REANUDADA_PROD_2); // activamos el flag
+            UARTprintf("Intentando reanudar productora 2 \r\n");
+        }
+        else
+        {
+            UARTprintf("La tarea productora 2 no estaba bloqueada \r\n");
+        }
+        break;
+
+    default:
+        UARTprintf("Uso: reanudar <1|2 \r\n");
+        break;
+    }
+    return 0;
+}
+
+
+
+
 
 // ==============================================================================
 // Tabla con los comandos y su descripcion. Si quiero anadir alguno, debo hacerlo aqui
@@ -182,6 +248,7 @@ tCmdLineEntry g_psCmdTable[] =
     { "?",        Cmd_help,      "        : lo mismo que help" },
     { "cpu",      Cmd_cpu,       "      : Muestra el uso de  CPU " },
     { "free",     Cmd_free,      "     : Muestra la memoria libre" },
+    { "reanudar", Cmd_reanudar,  "     : reanudar <1|2> -> reanuda productora bloqueada"},
 #if ( configUSE_TRACE_FACILITY == 1 )
 	{ "tasks",    Cmd_tasks,     "    : Muestra informacion de las tareas" },
 #endif
