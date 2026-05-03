@@ -47,13 +47,19 @@ typedef struct {
 
 #define PACKED __attribute__ ((packed))
 
+typedef struct {
+    uint8_t objetivos;
+}PACKED PARAM_MENSAJE_INICIO;
 
 typedef struct {
     uint8_t message;
 } PACKED PARAM_MENSAJE_NO_IMPLEMENTADO;
 
 typedef struct {
-    uint8_t numMensajes;
+    uint8_t numMensaje_objetivo;
+    uint16_t numMensajes;
+    uint16_t numMensajes_prod_1;
+    uint16_t numMensajes_prod_2;
     uint32_t id;
     uint8_t IDProd;
 } PACKED PARAM_MENSAJE_CONTADOR;
@@ -66,6 +72,9 @@ typedef struct {
 typedef struct {
     uint8_t bloqueado_1;
     uint8_t bloqueado_2;
+    uint8_t temp_hazardous;
+    uint8_t cuenta_atras;
+    uint8_t war_temp_critico;
 } PACKED PARAM_MENSAJE_ANOMALIAS;
 //#pragma pack()    //...Pero solo para los mensajes que voy a intercambiar, no para el resto
 

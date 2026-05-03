@@ -42,7 +42,7 @@
   <widget class="QTabWidget" name="tabWidget">
    <property name="geometry">
     <rect>
-     <x>0</x>
+     <x>20</x>
      <y>90</y>
      <width>1061</width>
      <height>621</height>
@@ -184,10 +184,10 @@
       <double>500.000000000000000</double>
      </property>
      <property name="nominal">
-      <double>400.000000000000000</double>
+      <double>300.000000000000000</double>
      </property>
      <property name="critical">
-      <double>450.000000000000000</double>
+      <double>410.000000000000000</double>
      </property>
      <property name="suffix">
       <string> [°C]</string>
@@ -223,6 +223,268 @@
      </property>
      <property name="plainText">
       <string>SOLDADURA</string>
+     </property>
+    </widget>
+    <widget class="Led" name="LEDblockProd1">
+     <property name="geometry">
+      <rect>
+       <x>400</x>
+       <y>190</y>
+       <width>41</width>
+       <height>41</height>
+      </rect>
+     </property>
+     <property name="toolTip">
+      <string>Color Led component</string>
+     </property>
+     <property name="whatsThis">
+      <string>Led indicator</string>
+     </property>
+     <property name="checked">
+      <bool>false</bool>
+     </property>
+    </widget>
+    <widget class="Led" name="LEDblockProd2">
+     <property name="geometry">
+      <rect>
+       <x>510</x>
+       <y>190</y>
+       <width>41</width>
+       <height>41</height>
+      </rect>
+     </property>
+     <property name="toolTip">
+      <string>Color Led component</string>
+     </property>
+     <property name="whatsThis">
+      <string>Led indicator</string>
+     </property>
+     <property name="checked">
+      <bool>false</bool>
+     </property>
+    </widget>
+    <widget class="QwtTextLabel" name="label_temp_3">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="geometry">
+      <rect>
+       <x>370</x>
+       <y>240</y>
+       <width>100</width>
+       <height>51</height>
+      </rect>
+     </property>
+     <property name="plainText">
+      <string>Bloqueo
+Productora 1
+</string>
+     </property>
+    </widget>
+    <widget class="QwtTextLabel" name="label_temp_4">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="geometry">
+      <rect>
+       <x>480</x>
+       <y>240</y>
+       <width>100</width>
+       <height>51</height>
+      </rect>
+     </property>
+     <property name="plainText">
+      <string>Bloqueo
+Productora 2
+
+</string>
+     </property>
+    </widget>
+    <widget class="QLCDNumber" name="counter_prod_1">
+     <property name="geometry">
+      <rect>
+       <x>560</x>
+       <y>10</y>
+       <width>171</width>
+       <height>51</height>
+      </rect>
+     </property>
+    </widget>
+    <widget class="QwtTextLabel" name="text_prod_1">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="geometry">
+      <rect>
+       <x>780</x>
+       <y>20</y>
+       <width>101</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="plainText">
+      <string>Contador Productora 1</string>
+     </property>
+    </widget>
+    <widget class="QLCDNumber" name="counter_prod_2">
+     <property name="geometry">
+      <rect>
+       <x>560</x>
+       <y>80</y>
+       <width>171</width>
+       <height>51</height>
+      </rect>
+     </property>
+    </widget>
+    <widget class="QwtTextLabel" name="text_prod_2">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="geometry">
+      <rect>
+       <x>780</x>
+       <y>90</y>
+       <width>101</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="plainText">
+      <string>Contador Productora 2</string>
+     </property>
+    </widget>
+    <widget class="Led" name="LEDtempHazardous">
+     <property name="geometry">
+      <rect>
+       <x>610</x>
+       <y>190</y>
+       <width>41</width>
+       <height>41</height>
+      </rect>
+     </property>
+     <property name="toolTip">
+      <string>Color Led component</string>
+     </property>
+     <property name="whatsThis">
+      <string>Led indicator</string>
+     </property>
+     <property name="checked">
+      <bool>false</bool>
+     </property>
+     <property name="color">
+      <color>
+       <red>0</red>
+       <green>170</green>
+       <blue>255</blue>
+      </color>
+     </property>
+    </widget>
+    <widget class="QwtTextLabel" name="label_temp_hazardous">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="geometry">
+      <rect>
+       <x>580</x>
+       <y>240</y>
+       <width>100</width>
+       <height>51</height>
+      </rect>
+     </property>
+     <property name="plainText">
+      <string>Temperatura Crítica
+</string>
+     </property>
+    </widget>
+    <widget class="Counter" name="counter_temp_hazardous">
+     <property name="geometry">
+      <rect>
+       <x>760</x>
+       <y>140</y>
+       <width>111</width>
+       <height>91</height>
+      </rect>
+     </property>
+     <property name="toolTip">
+      <string/>
+     </property>
+     <property name="whatsThis">
+      <string/>
+     </property>
+     <property name="digits">
+      <number>2</number>
+     </property>
+    </widget>
+    <widget class="QwtTextLabel" name="label_temp_hazardous_2">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="geometry">
+      <rect>
+       <x>770</x>
+       <y>240</y>
+       <width>100</width>
+       <height>51</height>
+      </rect>
+     </property>
+     <property name="plainText">
+      <string>Contador
+Temperatura Crítica
+Bloqueo
+</string>
+     </property>
+    </widget>
+    <widget class="QwtKnob" name="input_prod_obj">
+     <property name="geometry">
+      <rect>
+       <x>30</x>
+       <y>340</y>
+       <width>150</width>
+       <height>150</height>
+      </rect>
+     </property>
+     <property name="mouseTracking">
+      <bool>false</bool>
+     </property>
+     <property name="upperBound">
+      <double>100.000000000000000</double>
+     </property>
+     <property name="scaleStepSize">
+      <double>0.000000000000000</double>
+     </property>
+    </widget>
+    <widget class="QLCDNumber" name="output_prod_obj">
+     <property name="geometry">
+      <rect>
+       <x>190</x>
+       <y>350</y>
+       <width>81</width>
+       <height>61</height>
+      </rect>
+     </property>
+     <property name="segmentStyle">
+      <enum>QLCDNumber::SegmentStyle::Flat</enum>
+     </property>
+     <property name="intValue" stdset="0">
+      <number>0</number>
+     </property>
+    </widget>
+    <widget class="QwtTextLabel" name="label_objetivos">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="geometry">
+      <rect>
+       <x>180</x>
+       <y>430</y>
+       <width>100</width>
+       <height>51</height>
+      </rect>
+     </property>
+     <property name="plainText">
+      <string>Objetivos
+Fabricación
+
+</string>
      </property>
     </widget>
    </widget>
@@ -308,6 +570,11 @@
    <class>Counter</class>
    <extends>QWidget</extends>
    <header>analogwidgets/counter.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QwtKnob</class>
+   <extends>QWidget</extends>
+   <header>qwt_knob.h</header>
   </customwidget>
   <customwidget>
    <class>QwtTextLabel</class>

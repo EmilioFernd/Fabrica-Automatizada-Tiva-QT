@@ -8,6 +8,9 @@
 
 #include <QTimer>
 
+
+uint8_t objetivos_producto = 0;
+
 extern "C" {
 #include "serial2USBprotocol.h"    // Cabecera de funciones de gestión de tramas; se indica que está en C, ya que QTs
 // se integra en C++, y el C puede dar problemas si no se indica.
@@ -44,6 +47,7 @@ GUIPanel::GUIPanel(QWidget *parent) :  // Constructor de la clase
 
     ui->pingButton->setEnabled(false);    // Se deshabilita el botón de ping del interfaz gráfico, hasta que
     // se haya establecido conexión
+    ui->inicio->setEnabled(false); // botón inicio desactivado hasta que meta un objetivo mayor que 0
 
     //Inicializa la ventana pop-up PING
     ventanaPopUp.setIcon(QMessageBox::Information);
@@ -51,6 +55,12 @@ GUIPanel::GUIPanel(QWidget *parent) :  // Constructor de la clase
     ventanaPopUp.setStandardButtons(QMessageBox::Ok);
     ventanaPopUp.setWindowTitle(tr("Evento"));
     ventanaPopUp.setParent(this,Qt::Popup);
+
+    criticoPopUp.setIcon(QMessageBox::Warning);
+    criticoPopUp.setText(tr("AVERÍA CRÍTICA \n FÁBRICA PARALIZADA"));
+    criticoPopUp.setStandardButtons(QMessageBox::Ok);
+    criticoPopUp.setWindowTitle(tr("Evento Temperatura Crítica"));
+    criticoPopUp.setParent(this,Qt::Popup);
 }
 
 GUIPanel::~GUIPanel() // Destructor de la clase
@@ -135,21 +145,51 @@ void GUIPanel::readRequest()
                         if (check_and_extract_message_param(ptrtoparam, tam, sizeof(parametro),&parametro)>0)
                         {
                             ui->counter->setValue(parametro.numMensajes);
-                            ui->kitID->display(parametro.id);
+                            ui->kitID->display((int)parametro.id);
+                            ui->counter_prod_1->display(parametro.numMensajes_prod_1);
+                            ui->counter_prod_2->display(parametro.numMensajes_prod_2);
                             ui->led->setChecked(true);
                             ui->ProdID->display(parametro.IDProd);
                             QTimer::singleShot(500, this, SLOT(apagar_led()));
+
+                            ui->output_prod_obj->display(parametro.numMensaje_objetivo);
+                            ui->input_prod_obj ->setValue(parametro.numMensaje_objetivo);
                         }
                     }
                         break;
                     case MENSAJE_TEMPERATURA:
+                    {
                         PARAM_MENSAJE_TEMPERATURA parametro;
                         if (check_and_extract_message_param(ptrtoparam, tam, sizeof(parametro),&parametro)>0)
                         {
                             ui->temp_ambiente->setValue((int)parametro.ambiente);
                             ui->temp_soldadura->setValue((int)parametro.soldadura);
-
                         }
+                    }
+                        break;
+
+                    case MENSAJE_ANOMALIAS:
+                        PARAM_MENSAJE_ANOMALIAS parametro;
+                        if(check_and_extract_message_param(ptrtoparam, tam, sizeof(parametro), &parametro)>0)
+                        {
+                            ui->LEDblockProd1->setChecked(parametro.bloqueado_1);
+                            ui->LEDblockProd2->setChecked(parametro.bloqueado_2);
+                            ui->LEDtempHazardous->setChecked(parametro.temp_harzardous);
+                            ui->counter_temp_hazardous->setValue(parametro.cuenta_atras);
+
+                            //chequear el aviso crítico de temperatura
+                            if(parametro.war_temp_critico == 1)
+                            {
+                                criticoPopUp.setStyleSheet("background-color: red");
+                                criticoPopUp.setModal(true);
+                                criticoPopUp.show();
+
+                                //Deshabilitar elementos
+
+                            }
+                        }
+                        break;
+
                     default:
                         //Este error lo notifico mediante la señal statusChanged
                         LastError=QString("Status: Recibido paquete inesperado");
@@ -239,7 +279,7 @@ void GUIPanel::startSlave()
     ui->pingButton->setEnabled(true);
 
     // Habilitar el botón de inicio
-    ui->inicio->setEnabled(true);
+    //ui->inicio->setEnabled(true);
 
     // Variable indicadora de conexión a TRUE, para que se permita enviar mensajes en respuesta
     // a eventos del interfaz gráfico
@@ -314,13 +354,24 @@ void GUIPanel::pingResponseReceived()
 void GUIPanel::on_inicio_pressed()
 {
     ui->inicio->setEnabled(false); //deshabilitar el boton
+    ui->input_prod_obj->setEnabled(false); // deshabilitar para que no se pueda modificar
     int32_t i32Numdatos;
+    PARAM_MENSAJE_INICIO parametros;
+    parametros.objetivos = objetivos_producto;
     uint8_t pui8Frame[MAX_FRAME_SIZE];
     if (fConnected)
     {
-        i32Numdatos = create_frame(pui8Frame, MENSAJE_INICIO, 0, 0, MAX_FRAME_SIZE);
+        i32Numdatos = create_frame(pui8Frame,MENSAJE_INICIO, &parametros, sizeof(parametros), MAX_FRAME_SIZE);
         if(i32Numdatos>0) serial.write((const char*)pui8Frame,i32Numdatos);
     }
 
+}
+
+
+void GUIPanel::on_input_prod_obj_valueChanged(double value)
+{
+    objetivos_producto = (uint8_t) value ;
+    ui->inicio-> setEnabled(objetivos_producto > 0);
+    ui->output_prod_obj->display(value);
 }
 

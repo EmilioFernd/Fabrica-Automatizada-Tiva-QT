@@ -6,7 +6,6 @@
 //
 //*****************************************************************************
 
-
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -41,11 +40,13 @@
 
 #include "drivers/rgb.h"
 
+#include "usb_messages_table.h"
 
 // ==============================================================================
 // Variable para saber el bloqueo de las productoras
 // ==============================================================================
-extern EventGroupHandle_t FlagAnomalia;
+
+
 
 
 extern SemaphoreHandle_t semaforo_prod_1;
@@ -54,8 +55,7 @@ extern SemaphoreHandle_t semaforo_prod_2;
 extern volatile uint8_t g_ui8_prod1_block;
 extern volatile uint8_t g_ui8_prod2_block;
 
-#define COLA_REANUDADA_PROD_1 0x0010
-#define COLA_REANUDADA_PROD_2 0x0020
+
 // ==============================================================================
 // The CPU usage in percent, in 16.16 fixed point format.
 // ==============================================================================
@@ -64,16 +64,16 @@ extern uint32_t g_ui32CPUUsage;
 // ==============================================================================
 // Implementa el comando cpu que muestra el uso de CPU
 // ==============================================================================
-static int  Cmd_cpu(int argc, char *argv[])
+static int Cmd_cpu(int argc, char *argv[])
 {
     //
     // Print some header text.
     //
-    UARTprintf("ARM Cortex-M4F %u MHz - ",SysCtlClockGet() / 1000000);
-    UARTprintf("%2u%% de uso\r\n", (g_ui32CPUUsage+32768) >> 16);
+    UARTprintf("ARM Cortex-M4F %u MHz - ", SysCtlClockGet() / 1000000);
+    UARTprintf("%2u%% de uso\r\n", (g_ui32CPUUsage + 32768) >> 16);
 
     // Return success.
-    return(0);
+    return (0);
 }
 
 // ==============================================================================
@@ -87,7 +87,7 @@ static int Cmd_free(int argc, char *argv[])
     UARTprintf("%d bytes libres\r\n", xPortGetFreeHeapSize());
 
     // Return success.
-    return(0);
+    return (0);
 }
 
 // ==============================================================================
@@ -96,30 +96,31 @@ static int Cmd_free(int argc, char *argv[])
 #if ( configUSE_TRACE_FACILITY == 1 )
 
 extern char *__stack;
-static  int Cmd_tasks(int argc, char *argv[])
+static int Cmd_tasks(int argc, char *argv[])
 {
-	char*	pcBuffer;
-	uint8_t*	pi8Stack;
-	portBASE_TYPE	x;
-	
-	pcBuffer = pvPortMalloc(1024);
-	vTaskList(pcBuffer);
-	UARTprintf("\t\t\t\tUnused\r\nTaskName\tStatus\tPri\tStack\tTask ID\r\n");
-	UARTprintf("=======================================================\r\n");
-	UARTprintf("%s", pcBuffer);
-	
-	// Calculate kernel stack usage
-	x = 0;
-	pi8Stack = (uint8_t *) &__stack;
-	while (*pi8Stack++ == 0xA5)
-	{
-		x++;	//Esto s�lo funciona si hemos rellenado la pila del sistema con 0xA5 en el arranque
-	}
-	sprintf((char *) pcBuffer, "%%%us", configMAX_TASK_NAME_LEN);
-	sprintf((char *) &pcBuffer[10], (const char *) pcBuffer, "kernel");
-	UARTprintf("%s\t-\t*%u\t%u\t-\r\n", &pcBuffer[10], configKERNEL_INTERRUPT_PRIORITY, x/sizeof(portBASE_TYPE));
-	vPortFree(pcBuffer);
-	return 0;
+    char *pcBuffer;
+    uint8_t *pi8Stack;
+    portBASE_TYPE x;
+
+    pcBuffer = pvPortMalloc(1024);
+    vTaskList(pcBuffer);
+    UARTprintf("\t\t\t\tUnused\r\nTaskName\tStatus\tPri\tStack\tTask ID\r\n");
+    UARTprintf("=======================================================\r\n");
+    UARTprintf("%s", pcBuffer);
+
+    // Calculate kernel stack usage
+    x = 0;
+    pi8Stack = (uint8_t*) &__stack;
+    while (*pi8Stack++ == 0xA5)
+    {
+        x++;//Esto s�lo funciona si hemos rellenado la pila del sistema con 0xA5 en el arranque
+    }
+    sprintf((char*) pcBuffer, "%%%us", configMAX_TASK_NAME_LEN);
+    sprintf((char*) &pcBuffer[10], (const char*) pcBuffer, "kernel");
+    UARTprintf("%s\t-\t*%u\t%u\t-\r\n", &pcBuffer[10],
+               configKERNEL_INTERRUPT_PRIORITY, x / sizeof(portBASE_TYPE));
+    vPortFree(pcBuffer);
+    return 0;
 }
 
 #endif /* configUSE_TRACE_FACILITY */
@@ -130,18 +131,18 @@ static  int Cmd_tasks(int argc, char *argv[])
 // ==============================================================================
 static Cmd_stats(int argc, char *argv[])
 {
-	char*	pBuffer;
+    char *pBuffer;
 
-	pBuffer = pvPortMalloc(1024);
-	if (pBuffer)
-	{
-		vTaskGetRunTimeStats(pBuffer); //Es un poco inseguro, pero por ahora nos vale...
-		UARTprintf("TaskName\tCycles\t\tPercent\r\n");
-		UARTprintf("===============================================\r\r\n");
-		UARTprintf("%s", pBuffer);
-		vPortFree(pBuffer);
-	}
-	return 0;
+    pBuffer = pvPortMalloc(1024);
+    if (pBuffer)
+    {
+        vTaskGetRunTimeStats(pBuffer); //Es un poco inseguro, pero por ahora nos vale...
+        UARTprintf("TaskName\tCycles\t\tPercent\r\n");
+        UARTprintf("===============================================\r\r\n");
+        UARTprintf("%s", pBuffer);
+        vPortFree(pBuffer);
+    }
+    return 0;
 }
 #endif
 
@@ -167,7 +168,7 @@ static int Cmd_help(int argc, char *argv[])
     // Enter a loop to read each entry from the command table.  The end of the
     // table has been reached when the command name is NULL.
     //
-    while(pEntry->pcCmd)
+    while (pEntry->pcCmd)
     {
         //
         // Print the command name and the brief description.
@@ -183,7 +184,7 @@ static int Cmd_help(int argc, char *argv[])
     //
     // Return success.
     //
-    return(0);
+    return (0);
 }
 
 // ==============================================================================
@@ -192,6 +193,7 @@ static int Cmd_help(int argc, char *argv[])
 static int Cmd_reanudar(int argc, char *argv[])
 {
     int num;
+
     //Verifico que numero de entradas
     if (argc != 2)
     {
@@ -200,13 +202,15 @@ static int Cmd_reanudar(int argc, char *argv[])
     }
     num = atoi(argv[1]);
 
-    switch(num)
+    switch (num)
     {
-    case 1 :
-        if (g_ui8_prod1_block){
+    case 1:
+        if (g_ui8_prod1_block)
+        {
             xSemaphoreGive(semaforo_prod_1);
-            xEventGroupSetBits(FlagAnomalia, COLA_REANUDADA_PROD_1);
             UARTprintf("Intentando reanudar productora 1\r\n");
+            g_ui8_prod1_block = 0;
+
         }
         else
         {
@@ -214,11 +218,13 @@ static int Cmd_reanudar(int argc, char *argv[])
         }
         break;
 
-    case 2 :
-        if (g_ui8_prod2_block){
+    case 2:
+        if (g_ui8_prod2_block)
+        {
             xSemaphoreGive(semaforo_prod_2);
-            xEventGroupSetBits(FlagAnomalia, COLA_REANUDADA_PROD_2); // activamos el flag
             UARTprintf("Intentando reanudar productora 2 \r\n");
+            g_ui8_prod2_block = 0;
+
         }
         else
         {
@@ -230,40 +236,36 @@ static int Cmd_reanudar(int argc, char *argv[])
         UARTprintf("Uso: reanudar <1|2 \r\n");
         break;
     }
+
     return 0;
 }
-
-
-
-
 
 // ==============================================================================
 // Tabla con los comandos y su descripcion. Si quiero anadir alguno, debo hacerlo aqui
 // ==============================================================================
 //Este array tiene que ser global porque es utilizado por la biblioteca cmdline.c para implementar el interprete de comandos
 //No es muy elegante, pero es lo que ha implementado Texas Instruments.
-tCmdLineEntry g_psCmdTable[] =
-{
-    { "help",     Cmd_help,      "     : Lista de comandos" },
-    { "?",        Cmd_help,      "        : lo mismo que help" },
-    { "cpu",      Cmd_cpu,       "      : Muestra el uso de  CPU " },
-    { "free",     Cmd_free,      "     : Muestra la memoria libre" },
-    { "reanudar", Cmd_reanudar,  "     : reanudar <1|2> -> reanuda productora bloqueada"},
+tCmdLineEntry g_psCmdTable[] = {
+        { "help", Cmd_help, "     : Lista de comandos" }, {
+                "?", Cmd_help, "        : lo mismo que help" },
+        { "cpu", Cmd_cpu, "      : Muestra el uso de  CPU " }, {
+                "free", Cmd_free, "     : Muestra la memoria libre" },
+        { "reanudar", Cmd_reanudar,
+          "     : reanudar <1|2> -> reanuda productora bloqueada" },
 #if ( configUSE_TRACE_FACILITY == 1 )
-	{ "tasks",    Cmd_tasks,     "    : Muestra informacion de las tareas" },
+        { "tasks", Cmd_tasks, "    : Muestra informacion de las tareas" },
 #endif
 #if (configGENERATE_RUN_TIME_STATS)
-	{ "stats",    Cmd_stats,      "     : Muestra estadisticas de las tareas" },
+        { "stats", Cmd_stats, "     : Muestra estadisticas de las tareas" },
 #endif
-    { 0, 0, 0 }
-};
+        { 0, 0, 0 } };
 
 // ==============================================================================
 // Tarea UARTCommandTask.  Espera la llegada de comandos por el puerto serie y los ejecuta al recibirlos...
 // ==============================================================================
-static void UARTCommandTask( void *pvParameters )
+static void UARTCommandTask(void *pvParameters)
 {
-    char    pcCmdBuf[64];
+    char pcCmdBuf[64];
     int32_t i32Status;
 
     //
@@ -271,7 +273,7 @@ static void UARTCommandTask( void *pvParameters )
     //
     UARTprintf("\r\n\r\nWelcome to the TIVA FreeRTOS Demo!\r\n");
     UARTprintf("\r\n\r\n FreeRTOS %s \r\n",
-        tskKERNEL_VERSION_NUMBER);
+    tskKERNEL_VERSION_NUMBER);
     UARTprintf("\r\n Teclee ? para ver la ayuda \r\n");
     UARTprintf("> ");
 
@@ -296,7 +298,7 @@ static void UARTCommandTask( void *pvParameters )
         //
         // Handle the case of bad command.
         //
-        if(i32Status == CMDLINE_BAD_CMD)
+        if (i32Status == CMDLINE_BAD_CMD)
         {
             UARTprintf("Comando erroneo!\r\n"); //No pongo acentos adrede
         }
@@ -304,18 +306,19 @@ static void UARTCommandTask( void *pvParameters )
         //
         // Handle the case of too many arguments.
         //
-        else if(i32Status == CMDLINE_TOO_MANY_ARGS)
+        else if (i32Status == CMDLINE_TOO_MANY_ARGS)
         {
-            UARTprintf("El interprete de comandos no admite tantos parametros\r\n");    //El maximo, CMDLINE_MAX_ARGS, esta definido en cmdline.c
+            UARTprintf(
+                    "El interprete de comandos no admite tantos parametros\r\n"); //El maximo, CMDLINE_MAX_ARGS, esta definido en cmdline.c
         }
 
         //
         // Otherwise the command was executed.  Print the error code if one was
         // returned.
         //
-        else if(i32Status != 0)
+        else if (i32Status != 0)
         {
-            UARTprintf("El comando devolvio el error %d\r\n",i32Status);
+            UARTprintf("El comando devolvio el error %d\r\n", i32Status);
         }
 
         UARTprintf("> ");
@@ -323,11 +326,10 @@ static void UARTCommandTask( void *pvParameters )
     }
 }
 
-
 //
 // Crea la tarea que gestiona los comandos (definida en el fichero commands.c)
 //
-BaseType_t initCommandLine(uint16_t stack_size,uint8_t prioriry )
+BaseType_t initCommandLine(uint16_t stack_size, uint8_t prioriry)
 {
 
     // Inicializa la UARTy la configura a 115.200 bps, 8-N-1 .
@@ -341,9 +343,10 @@ BaseType_t initCommandLine(uint16_t stack_size,uint8_t prioriry )
     GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
 
     //Esta funcion habilita la interrupcion de la UART y le da la prioridad adecuada si esta activado el soporte para FreeRTOS
-    UARTStdioConfig(0,115200,SysCtlClockGet());
-    SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART0);   //La UART tiene que seguir funcionando aunque el micro esta dormido
+    UARTStdioConfig(0, 115200, SysCtlClockGet());
+    SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART0); //La UART tiene que seguir funcionando aunque el micro esta dormido
 
-    return xTaskCreate(UARTCommandTask, "UartComm", stack_size,NULL,prioriry, NULL);
+    return xTaskCreate(UARTCommandTask, "UartComm", stack_size, NULL, prioriry,
+                       NULL);
 }
 
