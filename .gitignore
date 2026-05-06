@@ -8,6 +8,8 @@ TIVA_code/Includes/
 QT_code/build/
 QT_code/Debug/
 QT_code/Release/
+*.pro.user
+.qtcreator/
 
 # Binarios
 *.o
