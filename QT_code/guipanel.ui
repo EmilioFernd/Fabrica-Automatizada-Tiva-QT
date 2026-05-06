@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1103</width>
-    <height>738</height>
+    <width>1100</width>
+    <height>767</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -44,8 +44,8 @@
     <rect>
      <x>20</x>
      <y>90</y>
-     <width>1061</width>
-     <height>621</height>
+     <width>1031</width>
+     <height>581</height>
     </rect>
    </property>
    <property name="layoutDirection">
@@ -63,440 +63,928 @@
     <attribute name="title">
      <string>Tab 2</string>
     </attribute>
-    <widget class="Counter" name="counter">
+    <widget class="QGroupBox" name="Temperaturas">
      <property name="geometry">
       <rect>
-       <x>30</x>
-       <y>20</y>
-       <width>100</width>
-       <height>40</height>
-      </rect>
-     </property>
-     <property name="toolTip">
-      <string/>
-     </property>
-     <property name="whatsThis">
-      <string/>
-     </property>
-    </widget>
-    <widget class="Led" name="led">
-     <property name="geometry">
-      <rect>
-       <x>250</x>
-       <y>30</y>
-       <width>16</width>
-       <height>16</height>
-      </rect>
-     </property>
-     <property name="toolTip">
-      <string>Color Led component</string>
-     </property>
-     <property name="whatsThis">
-      <string>Led indicator</string>
-     </property>
-    </widget>
-    <widget class="QLCDNumber" name="kitID">
-     <property name="geometry">
-      <rect>
-       <x>330</x>
+       <x>640</x>
        <y>10</y>
-       <width>171</width>
-       <height>51</height>
+       <width>351</width>
+       <height>251</height>
       </rect>
      </property>
-    </widget>
-    <widget class="QLCDNumber" name="ProdID">
-     <property name="geometry">
-      <rect>
-       <x>330</x>
-       <y>90</y>
-       <width>171</width>
-       <height>41</height>
-      </rect>
+     <property name="font">
+      <font>
+       <family>SF Pro Display</family>
+       <pointsize>12</pointsize>
+       <bold>true</bold>
+      </font>
      </property>
-    </widget>
-    <widget class="QPushButton" name="inicio">
-     <property name="geometry">
-      <rect>
-       <x>50</x>
-       <y>110</y>
-       <width>121</width>
-       <height>41</height>
-      </rect>
+     <property name="title">
+      <string>Temperaturas</string>
      </property>
-     <property name="text">
-      <string>INICIO</string>
+     <property name="alignment">
+      <set>Qt::AlignmentFlag::AlignJustify|Qt::AlignmentFlag::AlignVCenter</set>
+     </property>
+     <property name="flat">
+      <bool>false</bool>
      </property>
      <property name="checkable">
-      <bool>true</bool>
-     </property>
-     <property name="autoExclusive">
-      <bool>true</bool>
-     </property>
-    </widget>
-    <widget class="ManoMeter" name="temp_ambiente">
-     <property name="geometry">
-      <rect>
-       <x>70</x>
-       <y>180</y>
-       <width>100</width>
-       <height>100</height>
-      </rect>
-     </property>
-     <property name="toolTip">
-      <string>Shows the pressure</string>
-     </property>
-     <property name="whatsThis">
-      <string>The bar meter widget displays the pressure attached to it</string>
-     </property>
-     <property name="maximum">
-      <double>50.000000000000000</double>
-     </property>
-     <property name="nominal">
-      <double>15.000000000000000</double>
-     </property>
-     <property name="critical">
-      <double>30.000000000000000</double>
-     </property>
-     <property name="suffix">
-      <string> [°C]</string>
-     </property>
-    </widget>
-    <widget class="ManoMeter" name="temp_soldadura">
-     <property name="geometry">
-      <rect>
-       <x>220</x>
-       <y>180</y>
-       <width>100</width>
-       <height>100</height>
-      </rect>
-     </property>
-     <property name="toolTip">
-      <string>Shows the pressure</string>
-     </property>
-     <property name="whatsThis">
-      <string>The bar meter widget displays the pressure attached to it</string>
-     </property>
-     <property name="minimum">
-      <double>280.000000000000000</double>
-     </property>
-     <property name="maximum">
-      <double>500.000000000000000</double>
-     </property>
-     <property name="nominal">
-      <double>300.000000000000000</double>
-     </property>
-     <property name="critical">
-      <double>410.000000000000000</double>
-     </property>
-     <property name="suffix">
-      <string> [°C]</string>
-     </property>
-    </widget>
-    <widget class="QwtTextLabel" name="label_temp_1">
-     <property name="enabled">
-      <bool>true</bool>
-     </property>
-     <property name="geometry">
-      <rect>
-       <x>70</x>
-       <y>290</y>
-       <width>100</width>
-       <height>20</height>
-      </rect>
-     </property>
-     <property name="plainText">
-      <string>AMBIENTE</string>
-     </property>
-    </widget>
-    <widget class="QwtTextLabel" name="label_temp_2">
-     <property name="enabled">
-      <bool>true</bool>
-     </property>
-     <property name="geometry">
-      <rect>
-       <x>220</x>
-       <y>290</y>
-       <width>100</width>
-       <height>20</height>
-      </rect>
-     </property>
-     <property name="plainText">
-      <string>SOLDADURA</string>
-     </property>
-    </widget>
-    <widget class="Led" name="LEDblockProd1">
-     <property name="geometry">
-      <rect>
-       <x>400</x>
-       <y>190</y>
-       <width>41</width>
-       <height>41</height>
-      </rect>
-     </property>
-     <property name="toolTip">
-      <string>Color Led component</string>
-     </property>
-     <property name="whatsThis">
-      <string>Led indicator</string>
-     </property>
-     <property name="checked">
       <bool>false</bool>
      </property>
+     <widget class="ManoMeter" name="temp_ambiente">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>50</y>
+        <width>100</width>
+        <height>100</height>
+       </rect>
+      </property>
+      <property name="toolTip">
+       <string>Shows the pressure</string>
+      </property>
+      <property name="whatsThis">
+       <string>The bar meter widget displays the pressure attached to it</string>
+      </property>
+      <property name="maximum">
+       <double>50.000000000000000</double>
+      </property>
+      <property name="nominal">
+       <double>15.000000000000000</double>
+      </property>
+      <property name="critical">
+       <double>30.000000000000000</double>
+      </property>
+      <property name="suffix">
+       <string> [°C]</string>
+      </property>
+      <property name="valueFont">
+       <font>
+        <family>SF Pro</family>
+        <pointsize>25</pointsize>
+       </font>
+      </property>
+      <property name="digitFont">
+       <font>
+        <family>SF Pro</family>
+        <pointsize>20</pointsize>
+       </font>
+      </property>
+     </widget>
+     <widget class="QwtTextLabel" name="label_temp_1">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>30</x>
+        <y>150</y>
+        <width>121</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <family>SF Pro Display</family>
+        <pointsize>12</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="plainText">
+       <string>AMBIENTE</string>
+      </property>
+     </widget>
+     <widget class="ManoMeter" name="temp_soldadura">
+      <property name="geometry">
+       <rect>
+        <x>200</x>
+        <y>50</y>
+        <width>100</width>
+        <height>100</height>
+       </rect>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>100</width>
+        <height>100</height>
+       </size>
+      </property>
+      <property name="toolTip">
+       <string>Shows the pressure</string>
+      </property>
+      <property name="whatsThis">
+       <string>The bar meter widget displays the pressure attached to it</string>
+      </property>
+      <property name="minimum">
+       <double>280.000000000000000</double>
+      </property>
+      <property name="maximum">
+       <double>500.000000000000000</double>
+      </property>
+      <property name="nominal">
+       <double>300.000000000000000</double>
+      </property>
+      <property name="critical">
+       <double>410.000000000000000</double>
+      </property>
+      <property name="suffix">
+       <string> [°C]</string>
+      </property>
+      <property name="valueFont">
+       <font>
+        <family>SF Pro</family>
+        <pointsize>25</pointsize>
+       </font>
+      </property>
+     </widget>
+     <widget class="QwtTextLabel" name="label_temp_2">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>180</x>
+        <y>150</y>
+        <width>141</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="plainText">
+       <string>SOLDADURA</string>
+      </property>
+     </widget>
     </widget>
-    <widget class="Led" name="LEDblockProd2">
+    <widget class="QGroupBox" name="groupBox_2">
      <property name="geometry">
       <rect>
-       <x>510</x>
-       <y>190</y>
-       <width>41</width>
-       <height>41</height>
-      </rect>
-     </property>
-     <property name="toolTip">
-      <string>Color Led component</string>
-     </property>
-     <property name="whatsThis">
-      <string>Led indicator</string>
-     </property>
-     <property name="checked">
-      <bool>false</bool>
-     </property>
-    </widget>
-    <widget class="QwtTextLabel" name="label_temp_3">
-     <property name="enabled">
-      <bool>true</bool>
-     </property>
-     <property name="geometry">
-      <rect>
-       <x>370</x>
-       <y>240</y>
-       <width>100</width>
-       <height>51</height>
-      </rect>
-     </property>
-     <property name="plainText">
-      <string>Bloqueo
-Productora 1
-</string>
-     </property>
-    </widget>
-    <widget class="QwtTextLabel" name="label_temp_4">
-     <property name="enabled">
-      <bool>true</bool>
-     </property>
-     <property name="geometry">
-      <rect>
-       <x>480</x>
-       <y>240</y>
-       <width>100</width>
-       <height>51</height>
-      </rect>
-     </property>
-     <property name="plainText">
-      <string>Bloqueo
-Productora 2
-
-</string>
-     </property>
-    </widget>
-    <widget class="QLCDNumber" name="counter_prod_1">
-     <property name="geometry">
-      <rect>
-       <x>560</x>
+       <x>10</x>
        <y>10</y>
-       <width>171</width>
-       <height>51</height>
+       <width>581</width>
+       <height>251</height>
       </rect>
      </property>
-    </widget>
-    <widget class="QwtTextLabel" name="text_prod_1">
-     <property name="enabled">
-      <bool>true</bool>
+     <property name="font">
+      <font>
+       <family>SF Pro Display</family>
+       <pointsize>12</pointsize>
+       <bold>true</bold>
+      </font>
      </property>
-     <property name="geometry">
-      <rect>
-       <x>780</x>
-       <y>20</y>
-       <width>101</width>
-       <height>31</height>
-      </rect>
+     <property name="title">
+      <string>Producción</string>
      </property>
-     <property name="plainText">
-      <string>Contador Productora 1</string>
+     <property name="alignment">
+      <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTop|Qt::AlignmentFlag::AlignTrailing</set>
      </property>
-    </widget>
-    <widget class="QLCDNumber" name="counter_prod_2">
-     <property name="geometry">
-      <rect>
-       <x>560</x>
-       <y>80</y>
-       <width>171</width>
-       <height>51</height>
-      </rect>
-     </property>
-    </widget>
-    <widget class="QwtTextLabel" name="text_prod_2">
-     <property name="enabled">
-      <bool>true</bool>
-     </property>
-     <property name="geometry">
-      <rect>
-       <x>780</x>
-       <y>90</y>
-       <width>101</width>
-       <height>31</height>
-      </rect>
-     </property>
-     <property name="plainText">
-      <string>Contador Productora 2</string>
-     </property>
-    </widget>
-    <widget class="Led" name="LEDtempHazardous">
-     <property name="geometry">
-      <rect>
-       <x>610</x>
-       <y>190</y>
-       <width>41</width>
-       <height>41</height>
-      </rect>
-     </property>
-     <property name="toolTip">
-      <string>Color Led component</string>
-     </property>
-     <property name="whatsThis">
-      <string>Led indicator</string>
-     </property>
-     <property name="checked">
+     <property name="flat">
       <bool>false</bool>
      </property>
-     <property name="color">
-      <color>
-       <red>0</red>
-       <green>170</green>
-       <blue>255</blue>
-      </color>
-     </property>
+     <widget class="QLCDNumber" name="counter_prod_1">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>30</y>
+        <width>101</width>
+        <height>61</height>
+       </rect>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Shape::Panel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Shadow::Plain</enum>
+      </property>
+      <property name="lineWidth">
+       <number>2</number>
+      </property>
+      <property name="midLineWidth">
+       <number>0</number>
+      </property>
+      <property name="smallDecimalPoint">
+       <bool>false</bool>
+      </property>
+      <property name="digitCount">
+       <number>3</number>
+      </property>
+     </widget>
+     <widget class="QLCDNumber" name="counter_prod_2">
+      <property name="geometry">
+       <rect>
+        <x>160</x>
+        <y>30</y>
+        <width>101</width>
+        <height>61</height>
+       </rect>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Shape::Panel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Shadow::Plain</enum>
+      </property>
+      <property name="lineWidth">
+       <number>2</number>
+      </property>
+      <property name="digitCount">
+       <number>3</number>
+      </property>
+     </widget>
+     <widget class="QwtTextLabel" name="text_prod_1">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>90</y>
+        <width>101</width>
+        <height>61</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <family>SF Pro Display</family>
+        <pointsize>10</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="plainText">
+       <string>Contador 
+TIPO 1</string>
+      </property>
+     </widget>
+     <widget class="QwtTextLabel" name="text_prod_3">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>160</x>
+        <y>90</y>
+        <width>101</width>
+        <height>61</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <family>SF Pro Display</family>
+        <pointsize>10</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="plainText">
+       <string>Contador 
+TIPO 2</string>
+      </property>
+     </widget>
+     <widget class="Counter" name="counter">
+      <property name="geometry">
+       <rect>
+        <x>320</x>
+        <y>30</y>
+        <width>171</width>
+        <height>61</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <family>SF Pro Rounded</family>
+        <pointsize>12</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="toolTip">
+       <string/>
+      </property>
+      <property name="whatsThis">
+       <string/>
+      </property>
+     </widget>
+     <widget class="QwtTextLabel" name="text_prod_4">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>320</x>
+        <y>90</y>
+        <width>171</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <family>SF Pro Display</family>
+        <pointsize>10</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="plainText">
+       <string>Total Productos</string>
+      </property>
+     </widget>
+     <widget class="QLCDNumber" name="kitID">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>150</y>
+        <width>261</width>
+        <height>61</height>
+       </rect>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Shape::WinPanel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Shadow::Plain</enum>
+      </property>
+      <property name="lineWidth">
+       <number>2</number>
+      </property>
+      <property name="digitCount">
+       <number>6</number>
+      </property>
+     </widget>
+     <widget class="QwtTextLabel" name="text_prod_5">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>210</y>
+        <width>261</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <family>SF Pro Display</family>
+        <pointsize>10</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="plainText">
+       <string>ID Producto</string>
+      </property>
+     </widget>
+     <widget class="QwtTextLabel" name="text_prod_6">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>350</x>
+        <y>210</y>
+        <width>101</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <family>SF Pro Display</family>
+        <pointsize>10</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="plainText">
+       <string>Origen</string>
+      </property>
+     </widget>
+     <widget class="QLCDNumber" name="ProdID">
+      <property name="geometry">
+       <rect>
+        <x>350</x>
+        <y>150</y>
+        <width>101</width>
+        <height>61</height>
+       </rect>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Shape::Panel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Shadow::Plain</enum>
+      </property>
+      <property name="lineWidth">
+       <number>2</number>
+      </property>
+      <property name="digitCount">
+       <number>1</number>
+      </property>
+     </widget>
+     <widget class="Led" name="led">
+      <property name="geometry">
+       <rect>
+        <x>500</x>
+        <y>30</y>
+        <width>71</width>
+        <height>51</height>
+       </rect>
+      </property>
+      <property name="toolTip">
+       <string>Color Led component</string>
+      </property>
+      <property name="whatsThis">
+       <string>Led indicator</string>
+      </property>
+      <property name="color">
+       <color>
+        <red>255</red>
+        <green>255</green>
+        <blue>0</blue>
+       </color>
+      </property>
+     </widget>
     </widget>
-    <widget class="QwtTextLabel" name="label_temp_hazardous">
-     <property name="enabled">
-      <bool>true</bool>
-     </property>
+    <widget class="QGroupBox" name="groupBox_3">
      <property name="geometry">
       <rect>
-       <x>580</x>
-       <y>240</y>
-       <width>100</width>
-       <height>51</height>
+       <x>10</x>
+       <y>270</y>
+       <width>581</width>
+       <height>271</height>
       </rect>
      </property>
-     <property name="plainText">
-      <string>Temperatura Crítica
-</string>
+     <property name="font">
+      <font>
+       <family>SF Pro Display</family>
+       <pointsize>12</pointsize>
+       <bold>true</bold>
+      </font>
      </property>
-    </widget>
-    <widget class="Counter" name="counter_temp_hazardous">
-     <property name="geometry">
-      <rect>
-       <x>760</x>
-       <y>140</y>
-       <width>111</width>
-       <height>91</height>
-      </rect>
+     <property name="title">
+      <string>Alarmas</string>
      </property>
-     <property name="toolTip">
-      <string/>
+     <property name="alignment">
+      <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
      </property>
-     <property name="whatsThis">
-      <string/>
-     </property>
-     <property name="digits">
-      <number>2</number>
-     </property>
-    </widget>
-    <widget class="QwtTextLabel" name="label_temp_hazardous_2">
-     <property name="enabled">
-      <bool>true</bool>
-     </property>
-     <property name="geometry">
-      <rect>
-       <x>770</x>
-       <y>240</y>
-       <width>100</width>
-       <height>51</height>
-      </rect>
-     </property>
-     <property name="plainText">
-      <string>Contador
-Temperatura Crítica
-Bloqueo
-</string>
-     </property>
-    </widget>
-    <widget class="QwtKnob" name="input_prod_obj">
-     <property name="geometry">
-      <rect>
-       <x>30</x>
-       <y>340</y>
-       <width>150</width>
-       <height>150</height>
-      </rect>
-     </property>
-     <property name="mouseTracking">
+     <property name="flat">
       <bool>false</bool>
      </property>
-     <property name="upperBound">
-      <double>100.000000000000000</double>
-     </property>
-     <property name="scaleStepSize">
-      <double>0.000000000000000</double>
-     </property>
+     <widget class="QGroupBox" name="groupBox_4">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>30</y>
+        <width>181</width>
+        <height>121</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <family>SF Pro Display</family>
+        <pointsize>10</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="title">
+       <string>Bloqueos</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+      </property>
+      <widget class="Led" name="LEDblockProd1">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>30</y>
+         <width>61</width>
+         <height>61</height>
+        </rect>
+       </property>
+       <property name="toolTip">
+        <string>Color Led component</string>
+       </property>
+       <property name="whatsThis">
+        <string>Led indicator</string>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+      </widget>
+      <widget class="Led" name="LEDblockProd2">
+       <property name="geometry">
+        <rect>
+         <x>110</x>
+         <y>30</y>
+         <width>61</width>
+         <height>61</height>
+        </rect>
+       </property>
+       <property name="toolTip">
+        <string>Color Led component</string>
+       </property>
+       <property name="whatsThis">
+        <string>Led indicator</string>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+       <property name="color">
+        <color>
+         <red>0</red>
+         <green>255</green>
+         <blue>0</blue>
+        </color>
+       </property>
+      </widget>
+      <widget class="QwtTextLabel" name="text_prod_7">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>80</y>
+         <width>61</width>
+         <height>41</height>
+        </rect>
+       </property>
+       <property name="font">
+        <font>
+         <family>SF Pro Display</family>
+         <pointsize>10</pointsize>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="plainText">
+        <string>P1</string>
+       </property>
+      </widget>
+      <widget class="QwtTextLabel" name="text_prod_8">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="geometry">
+        <rect>
+         <x>110</x>
+         <y>80</y>
+         <width>61</width>
+         <height>41</height>
+        </rect>
+       </property>
+       <property name="font">
+        <font>
+         <family>SF Pro Display</family>
+         <pointsize>10</pointsize>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="plainText">
+        <string>P2</string>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QGroupBox" name="groupBox_5">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>160</y>
+        <width>551</width>
+        <height>101</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <family>SF Pro Display</family>
+        <pointsize>10</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="title">
+       <string>Peligro Temperatura</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+      </property>
+      <widget class="Led" name="LEDtempHazardous">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>30</y>
+         <width>61</width>
+         <height>61</height>
+        </rect>
+       </property>
+       <property name="toolTip">
+        <string>Color Led component</string>
+       </property>
+       <property name="whatsThis">
+        <string>Led indicator</string>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+       <property name="color">
+        <color>
+         <red>0</red>
+         <green>170</green>
+         <blue>255</blue>
+        </color>
+       </property>
+      </widget>
+      <widget class="Counter" name="counter_temp_hazardous">
+       <property name="geometry">
+        <rect>
+         <x>380</x>
+         <y>20</y>
+         <width>101</width>
+         <height>71</height>
+        </rect>
+       </property>
+       <property name="toolTip">
+        <string/>
+       </property>
+       <property name="whatsThis">
+        <string/>
+       </property>
+       <property name="digits">
+        <number>2</number>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="lineEdit">
+       <property name="geometry">
+        <rect>
+         <x>210</x>
+         <y>40</y>
+         <width>113</width>
+         <height>41</height>
+        </rect>
+       </property>
+       <property name="font">
+        <font>
+         <family>SF Pro Display</family>
+         <pointsize>10</pointsize>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="mouseTracking">
+        <bool>false</bool>
+       </property>
+       <property name="acceptDrops">
+        <bool>false</bool>
+       </property>
+       <property name="text">
+        <string>410</string>
+       </property>
+       <property name="frame">
+        <bool>true</bool>
+       </property>
+       <property name="echoMode">
+        <enum>QLineEdit::EchoMode::Normal</enum>
+       </property>
+       <property name="cursorPosition">
+        <number>3</number>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignmentFlag::AlignCenter</set>
+       </property>
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+       <property name="placeholderText">
+        <string notr="true"/>
+       </property>
+      </widget>
+      <widget class="QwtTextLabel" name="text_prod_9">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="geometry">
+        <rect>
+         <x>120</x>
+         <y>40</y>
+         <width>81</width>
+         <height>41</height>
+        </rect>
+       </property>
+       <property name="font">
+        <font>
+         <family>SF Pro Display</family>
+         <pointsize>10</pointsize>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="indent">
+        <number>4</number>
+       </property>
+       <property name="margin">
+        <number>1</number>
+       </property>
+       <property name="plainText">
+        <string>Umbral</string>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QGroupBox" name="groupBox_7">
+      <property name="geometry">
+       <rect>
+        <x>250</x>
+        <y>30</y>
+        <width>291</width>
+        <height>121</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <family>SF Pro Display</family>
+        <pointsize>10</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="title">
+       <string>Parada</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+      </property>
+      <widget class="QProgressBar" name="progressBar">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>30</y>
+         <width>271</width>
+         <height>41</height>
+        </rect>
+       </property>
+       <property name="font">
+        <font>
+         <family>SF Pro Display</family>
+         <pointsize>10</pointsize>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="minimum">
+        <number>0</number>
+       </property>
+       <property name="maximum">
+        <number>20</number>
+       </property>
+       <property name="value">
+        <number>0</number>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignmentFlag::AlignJustify|Qt::AlignmentFlag::AlignVCenter</set>
+       </property>
+       <property name="textVisible">
+        <bool>true</bool>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="invertedAppearance">
+        <bool>true</bool>
+       </property>
+       <property name="textDirection">
+        <enum>QProgressBar::Direction::TopToBottom</enum>
+       </property>
+      </widget>
+      <widget class="QwtTextLabel" name="text_prod_11">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="geometry">
+        <rect>
+         <x>50</x>
+         <y>70</y>
+         <width>191</width>
+         <height>41</height>
+        </rect>
+       </property>
+       <property name="font">
+        <font>
+         <family>SF Pro Display</family>
+         <pointsize>10</pointsize>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="plainText">
+        <string>20 segundos</string>
+       </property>
+      </widget>
+     </widget>
     </widget>
-    <widget class="QLCDNumber" name="output_prod_obj">
+    <widget class="QGroupBox" name="groupBox_6">
      <property name="geometry">
       <rect>
-       <x>190</x>
-       <y>350</y>
-       <width>81</width>
-       <height>61</height>
+       <x>640</x>
+       <y>270</y>
+       <width>351</width>
+       <height>271</height>
       </rect>
      </property>
-     <property name="segmentStyle">
-      <enum>QLCDNumber::SegmentStyle::Flat</enum>
+     <property name="font">
+      <font>
+       <family>SF Pro Display</family>
+       <pointsize>12</pointsize>
+       <bold>true</bold>
+      </font>
      </property>
-     <property name="intValue" stdset="0">
-      <number>0</number>
+     <property name="title">
+      <string>Objetivos</string>
      </property>
-    </widget>
-    <widget class="QwtTextLabel" name="label_objetivos">
-     <property name="enabled">
-      <bool>true</bool>
+     <property name="alignment">
+      <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTop|Qt::AlignmentFlag::AlignTrailing</set>
      </property>
-     <property name="geometry">
-      <rect>
-       <x>180</x>
-       <y>430</y>
-       <width>100</width>
-       <height>51</height>
-      </rect>
-     </property>
-     <property name="plainText">
-      <string>Objetivos
-Fabricación
-
-</string>
-     </property>
+     <widget class="QwtKnob" name="input_prod_obj">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>40</y>
+        <width>150</width>
+        <height>221</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <family>SF Pro Display</family>
+        <pointsize>6</pointsize>
+        <bold>false</bold>
+       </font>
+      </property>
+      <property name="mouseTracking">
+       <bool>false</bool>
+      </property>
+      <property name="upperBound">
+       <double>100.000000000000000</double>
+      </property>
+      <property name="scaleStepSize">
+       <double>0.000000000000000</double>
+      </property>
+     </widget>
+     <widget class="QLCDNumber" name="output_prod_obj">
+      <property name="geometry">
+       <rect>
+        <x>210</x>
+        <y>100</y>
+        <width>101</width>
+        <height>61</height>
+       </rect>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Shape::Panel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Shadow::Plain</enum>
+      </property>
+      <property name="lineWidth">
+       <number>2</number>
+      </property>
+      <property name="digitCount">
+       <number>3</number>
+      </property>
+      <property name="segmentStyle">
+       <enum>QLCDNumber::SegmentStyle::Filled</enum>
+      </property>
+      <property name="intValue" stdset="0">
+       <number>0</number>
+      </property>
+     </widget>
+     <widget class="QwtTextLabel" name="text_prod_10">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>210</x>
+        <y>170</y>
+        <width>101</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <family>SF Pro Display</family>
+        <pointsize>10</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="plainText">
+       <string>Restantes</string>
+      </property>
+     </widget>
     </widget>
    </widget>
   </widget>
   <widget class="QGroupBox" name="groupBox">
    <property name="geometry">
     <rect>
-     <x>0</x>
-     <y>0</y>
+     <x>20</x>
+     <y>10</y>
      <width>471</width>
      <height>80</height>
     </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>SF Pro Display</family>
+     <pointsize>12</pointsize>
+     <bold>true</bold>
+    </font>
    </property>
    <property name="title">
     <string>Conexión USB</string>
@@ -519,6 +1007,13 @@ Fabricación
      </property>
     </widget>
     <widget class="QComboBox" name="serialPortComboBox">
+     <property name="font">
+      <font>
+       <family>SF Pro Display</family>
+       <pointsize>9</pointsize>
+       <bold>false</bold>
+      </font>
+     </property>
      <item>
       <property name="text">
        <string>COM11</string>
@@ -529,11 +1024,18 @@ Fabricación
    <widget class="QPushButton" name="runButton">
     <property name="geometry">
      <rect>
-      <x>270</x>
+      <x>260</x>
       <y>30</y>
       <width>98</width>
       <height>27</height>
      </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>SF Pro Display</family>
+      <pointsize>11</pointsize>
+      <bold>true</bold>
+     </font>
     </property>
     <property name="text">
      <string>Conectar</string>
@@ -548,10 +1050,52 @@ Fabricación
       <height>27</height>
      </rect>
     </property>
+    <property name="font">
+     <font>
+      <family>SF Pro Display</family>
+      <pointsize>11</pointsize>
+      <bold>true</bold>
+     </font>
+    </property>
     <property name="text">
      <string>Ping</string>
     </property>
    </widget>
+  </widget>
+  <widget class="QPushButton" name="inicio">
+   <property name="geometry">
+    <rect>
+     <x>550</x>
+     <y>20</y>
+     <width>201</width>
+     <height>71</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>SF Pro Display</family>
+     <pointsize>12</pointsize>
+     <bold>true</bold>
+    </font>
+   </property>
+   <property name="text">
+    <string>INICIO</string>
+   </property>
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="autoExclusive">
+    <bool>true</bool>
+   </property>
+   <property name="autoDefault">
+    <bool>false</bool>
+   </property>
+   <property name="default">
+    <bool>false</bool>
+   </property>
+   <property name="flat">
+    <bool>false</bool>
+   </property>
   </widget>
  </widget>
  <layoutdefault spacing="6" margin="11"/>

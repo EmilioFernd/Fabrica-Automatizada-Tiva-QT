@@ -29,6 +29,8 @@ private slots:
 
     void on_inicio_pressed();
 
+    void on_input_prod_obj_valueChanged(double value);
+
 private: // funciones privadas
     void pingDevice();
     void startSlave();
@@ -43,6 +45,7 @@ private:
     QByteArray incommingDataBuffer;
     QString LastError;
     QMessageBox ventanaPopUp;
+    QMessageBox criticoPopUp;
 
 };
 

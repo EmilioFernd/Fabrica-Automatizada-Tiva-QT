@@ -48,6 +48,9 @@
 
 
 
+//===============================================================================
+//  Variables para el comando REANUDAR
+//===============================================================================
 
 extern SemaphoreHandle_t semaforo_prod_1;
 extern SemaphoreHandle_t semaforo_prod_2;
@@ -55,6 +58,22 @@ extern SemaphoreHandle_t semaforo_prod_2;
 extern volatile uint8_t g_ui8_prod1_block;
 extern volatile uint8_t g_ui8_prod2_block;
 
+
+//===============================================================================
+//  Variables para el comando TRAZAS
+//===============================================================================
+
+extern EventGroupHandle_t FlagTrazas;
+extern SemaphoreHandle_t mutexUART;
+
+#define TRAZA_ACTIVA 0x0001
+
+
+//===============================================================================
+//  Variables para el comando MODIFICA
+//===============================================================================
+
+extern QueueHandle_t mailbox_modifica;
 
 // ==============================================================================
 // The CPU usage in percent, in 16.16 fixed point format.
@@ -197,7 +216,9 @@ static int Cmd_reanudar(int argc, char *argv[])
     //Verifico que numero de entradas
     if (argc != 2)
     {
+        xSemaphoreTake(mutexUART, portMAX_DELAY);
         UARTprintf("Uso: reanudar <1|2>\r\n");
+        xSemaphoreGive(mutexUART);
         return 0;
     }
     num = atoi(argv[1]);
@@ -208,13 +229,17 @@ static int Cmd_reanudar(int argc, char *argv[])
         if (g_ui8_prod1_block)
         {
             xSemaphoreGive(semaforo_prod_1);
+            xSemaphoreTake(mutexUART,portMAX_DELAY);
             UARTprintf("Intentando reanudar productora 1\r\n");
+            xSemaphoreGive(mutexUART);
             g_ui8_prod1_block = 0;
 
         }
         else
         {
+            xSemaphoreTake(mutexUART,portMAX_DELAY);
             UARTprintf("La tarea productora 1 no estaba bloqueada \r\n");
+            xSemaphoreGive(mutexUART);
         }
         break;
 
@@ -222,21 +247,97 @@ static int Cmd_reanudar(int argc, char *argv[])
         if (g_ui8_prod2_block)
         {
             xSemaphoreGive(semaforo_prod_2);
+            xSemaphoreTake(mutexUART,portMAX_DELAY);
             UARTprintf("Intentando reanudar productora 2 \r\n");
+            xSemaphoreGive(mutexUART);
             g_ui8_prod2_block = 0;
 
         }
         else
         {
+            xSemaphoreTake(mutexUART,portMAX_DELAY);
             UARTprintf("La tarea productora 2 no estaba bloqueada \r\n");
+            xSemaphoreGive(mutexUART);
         }
         break;
 
     default:
+        xSemaphoreTake(mutexUART,portMAX_DELAY);
         UARTprintf("Uso: reanudar <1|2 \r\n");
+        xSemaphoreGive(mutexUART);
         break;
     }
 
+    return 0;
+}
+
+static int Cmd_traza(int argc, char *argv[])
+{
+
+
+
+    // Verifico que numero de entradas
+        if (argc != 2)
+        {
+            xSemaphoreTake(mutexUART, portMAX_DELAY);
+            UARTprintf("Uso: traza <on|off>\r\n");
+            xSemaphoreGive(mutexUART);
+            return 0;
+        }
+
+    // Creamos if para comprobar si hemos escrito 'on'o 'off'
+
+        if (strcmp(argv[1], "on") == 0)
+        {
+            xEventGroupSetBits(FlagTrazas,TRAZA_ACTIVA);
+
+            xSemaphoreTake(mutexUART, portMAX_DELAY);
+            UARTprintf("Modo traza ACTIVADO \r\n");
+            xSemaphoreGive(mutexUART);
+        }
+        else if (strcmp(argv[1], "off")== 0)
+        {
+            xEventGroupClearBits(FlagTrazas, TRAZA_ACTIVA);
+
+            xSemaphoreTake(mutexUART, portMAX_DELAY);
+            UARTprintf("Modo traza DESACTIVADO\r\n");
+            xSemaphoreGive(mutexUART);
+        }
+
+        else // si no es 'on' ni 'off'
+        {
+            xSemaphoreTake(mutexUART, portMAX_DELAY);
+            UARTprintf("Uso: traza <on|off>\r\n");
+            xSemaphoreGive(mutexUART);
+        }
+
+        return 0;
+}
+
+static int Cmd_modifica(int argc , char *argv[])
+{
+    // comprobamos parametros
+    if (argc != 3)
+    {
+        xSemaphoreTake(mutexUART, portMAX_DELAY);
+        UARTprintf("Uso: modifica <cuenta30> <XX> Error 1 \r\n");
+        xSemaphoreGive(mutexUART);
+    }
+    else //parametros correctos
+    {
+        uint8_t ui8_datos_cambiar;
+        if (0 == strcmp(argv[1], "cuenta30"))
+        {
+           ui8_datos_cambiar = (uint8_t)atoi(argv[2]);
+           xQueueOverwrite(mailbox_modifica, &ui8_datos_cambiar); //mete el dato en el mailbox
+        }
+
+        else {
+            xSemaphoreTake(mutexUART, portMAX_DELAY);
+            UARTprintf("Uso: modifica <cuenta30> <XX>  Error 2\r\n");
+            xSemaphoreGive(mutexUART);
+        }
+    }
     return 0;
 }
 
@@ -252,6 +353,8 @@ tCmdLineEntry g_psCmdTable[] = {
                 "free", Cmd_free, "     : Muestra la memoria libre" },
         { "reanudar", Cmd_reanudar,
           "     : reanudar <1|2> -> reanuda productora bloqueada" },
+          {"traza", Cmd_traza, "     Habilita información sobre trazas de ensamblake y productora" },
+          {"modifica", Cmd_modifica, "     Modifica el valor sobre variables del programa" },
 #if ( configUSE_TRACE_FACILITY == 1 )
         { "tasks", Cmd_tasks, "    : Muestra informacion de las tareas" },
 #endif

@@ -53,15 +53,16 @@
 uint32_t g_ui32CPUUsage;
 uint32_t g_ui32SystemClock;
 // Variables para detectar bloqueo de productora
-volatile uint8_t g_ui8_prod1_block=0;  //Preguntar si se puede detectar el bloqueo mediante los semáforos usando:
-volatile uint8_t g_ui8_prod2_block=0;  //uxSemaphoreGetCount
-
+volatile uint8_t g_ui8_prod1_block = 0; //Preguntar si se puede detectar el bloqueo mediante los semáforos usando:
+volatile uint8_t g_ui8_prod2_block = 0;  //uxSemaphoreGetCount
 
 SemaphoreHandle_t mutexUSB, mutexUART, mutexRGB; // Para proteccion del canal USB y el caal UART -terminal-, ya que ahora lo van a usar varias tareas distintas
 QueueHandle_t cola_prod_cons_1; // Cola para enviar el ID
 QueueHandle_t cola_prod_cons_2;
 
 QueueSetHandle_t grupo_colas;
+
+
 
 //=====
 // SEMÁFOROS
@@ -75,8 +76,13 @@ SemaphoreHandle_t semaforo_prod_2;
 
 SemaphoreHandle_t semaforo_cont_prod;
 
+//=====
+// MAILBOX
+//=====
+
 QueueHandle_t mailbox_temperatura;
 QueueHandle_t mailbox_temperatura_control;
+QueueHandle_t mailbox_modifica; // mail box para depuracion, modificación de datos
 //======
 // GRUPO DE FLAGS
 //======
@@ -84,13 +90,14 @@ EventGroupHandle_t FlagEvento;
 EventGroupHandle_t FlagAnomalia;
 EventGroupHandle_t FlagBoton;
 EventGroupHandle_t FlagObjetivo;
+EventGroupHandle_t FlagTrazas;
 
 //======
 //TIMER
 //======
-TimerHandle_t timerApagadoTemperatura;
-TimerHandle_t timerTresSeg;
-
+TimerHandle_t timerApagadoTemperatura; // Cuenta los 30 segundos para TEMPERATURA CRÍTICA
+TimerHandle_t timerTresSeg; // Cuenta 3 segundos para saber si la temperatura se ha REESTABLECIDO
+TimerHandle_t timerParada; // Cuenta los 20 segundos para visualizarlos en Qt
 
 //======
 //HANDLER
@@ -109,11 +116,13 @@ volatile uint8_t counter_objetivo;
 //Prototipo de funciones
 void ADC_Handler(void);
 void GPIOF_Handler(void);
-void TIMER2A_Handler (void);
-static void Timer1CallBack(TimerHandle_t  xTimer);
+void TIMER2A_Handler(void);
+static void Timer1CallBack(TimerHandle_t xTimer);
 static void Timer2CallBack(TimerHandle_t xTimer);
+static void Timer3CallBack(TimerHandle_t xTimer);
 
 uint32_t brillo_temperatura(uint32_t temperatura);
+static uint8_t TrazasActivas(void);
 
 //DEFINICIón de EVENTOS
 #define INICIO_START 0x0001
@@ -125,12 +134,14 @@ uint32_t brillo_temperatura(uint32_t temperatura);
 #define TEMP_HAZARDOUS 0x0008        //0b001000
 #define TEMP_HAZARDOUS_OFF 0x0010    //0b010000
 
-
 //DEFINICIÓN FLAGBOTON
 #define BOTON_DESACTIVADO 0x0001
 
 //DEFINICIÓN FLAGOBJETIVO
 #define OBJETIVO_NO_CUMPLIDO 0x0001
+
+//DEFINICIÓN FLAGTRAZAS
+#define TRAZA_ACTIVA 0x0001
 
 //*****************************************************************************
 //
@@ -234,6 +245,9 @@ static portTASK_FUNCTION( USBMessageProcessingTask, pvParameters )
             else
             { //El paquete esta bien, luego procedo a tratarlo.
                 ui8Message = decode_message_type(pui8Frame); //Obtiene el valor del campo mensaje
+
+                \
+
                 i32Numdatos = get_message_param_pointer(pui8Frame, i32Numdatos,
                                                         &ptrtoreceivedparam); //Obtiene un puntero al campo de parametros y su tamanio.
                 switch (ui8Message)
@@ -278,16 +292,20 @@ static portTASK_FUNCTION( USBMessageProcessingTask, pvParameters )
                     PARAM_MENSAJE_INICIO parametros;
 
                     //Leemos los objetivos
-                    if (check_and_extract_message_param(ptrtoreceivedparam, i32Numdatos, sizeof(parametros),&parametros)>0)
-                           {
-                                counter_objetivo = parametros.objetivos; //actualiza variable global para contador
-                                semaforo_cont_prod = xSemaphoreCreateCounting(100,parametros.objetivos); //100 es el máximo de objetivos
-                                if (semaforo_cont_prod == NULL)
-                                {
-                                    while(1);
-                                }
-                           }
-
+                    if (check_and_extract_message_param(ptrtoreceivedparam,
+                                                        i32Numdatos,
+                                                        sizeof(parametros),
+                                                        &parametros) > 0)
+                    {
+                        counter_objetivo = parametros.objetivos; //actualiza variable global para contador
+                        semaforo_cont_prod = xSemaphoreCreateCounting(
+                                100, parametros.objetivos); //100 es el máximo de objetivos
+                        if (semaforo_cont_prod == NULL)
+                        {
+                            while (1)
+                                ;
+                        }
+                    }
 
                     xEventGroupSetBits(FlagEvento, INICIO_START);
 
@@ -296,7 +314,7 @@ static portTASK_FUNCTION( USBMessageProcessingTask, pvParameters )
                     ADCSequenceEnable(ADC0_BASE, 1);
                     ADCIntEnable(ADC0_BASE, 1);
                     IntEnable(INT_ADC0SS1);
-                    MAP_TimerEnable(TIMER0_BASE, TIMER_A);
+                    MAP_TimerEnable(TIMER4_BASE, TIMER_A);
 
                     break;
 
@@ -335,8 +353,9 @@ static portTASK_FUNCTION(tareaControl, pvParameters)
 {
 
     EventBits_t ui32FlagsAnomalia = 0;
-    PARAM_MENSAJE_ANOMALIAS parametro = {0}; // Inicializamos para tener valores seguros.
-    PARAM_MENSAJE_TEMPERATURA param_temp = {0};
+    PARAM_MENSAJE_ANOMALIAS parametro = { 0 }; // Inicializamos para tener valores seguros.
+    PARAM_MENSAJE_BLOQUEO param_bloqueo = { 0 };
+    PARAM_MENSAJE_TEMPERATURA param_temp = { 0 };
     int32_t ui32Numdatos;
     uint8_t pui8Frame[MAX_FRAME_SIZE];
     uint32_t ui32_rgb[3];
@@ -349,7 +368,10 @@ static portTASK_FUNCTION(tareaControl, pvParameters)
         ui32FlagsAnomalia = 0; // Reincia el flag
 
         ui32FlagsAnomalia = xEventGroupWaitBits(
-                FlagAnomalia, COLA_LLENA_PROD_1 | COLA_LLENA_PROD_2 | TIME_STOP | TEMP_HAZARDOUS | TEMP_HAZARDOUS_OFF, pdTRUE,
+                FlagAnomalia,
+                COLA_LLENA_PROD_1 | COLA_LLENA_PROD_2 | TIME_STOP
+                        | TEMP_HAZARDOUS | TEMP_HAZARDOUS_OFF,
+                pdTRUE,
                 pdFALSE,
                 portMAX_DELAY); //Espera flags de eventos, reinicia los flags y tiene la función OR
 
@@ -358,14 +380,28 @@ static portTASK_FUNCTION(tareaControl, pvParameters)
         if ((ui32FlagsAnomalia & COLA_LLENA_PROD_1) == COLA_LLENA_PROD_1)
         {
 
+            //TRAZA DE DEPURACIÓN
+            if (TrazasActivas())
+            {
+                xSemaphoreTake(mutexUART, portMAX_DELAY);
+                UARTprintf("Traza: alarma, cola llena en productora 1\r\n");
+                xSemaphoreGive(mutexUART);
+            }
+
             RGBColorGet(ui32_rgb); // LECTURA DE LOS COLORES ACTUALES
             ui32_rgb[0] = 0xFFFF; // ENCIENDE EL COLOR ROJO
             RGBColorSet(ui32_rgb);
 
-
         }
         if ((ui32FlagsAnomalia & COLA_LLENA_PROD_2) == COLA_LLENA_PROD_2)
         {
+            //TRAZA DE DEPURACIÓN
+            if (TrazasActivas())
+            {
+                xSemaphoreTake(mutexUART, portMAX_DELAY);
+                UARTprintf("Traza: alarma, cola llena en productora 2\r\n");
+                xSemaphoreGive(mutexUART);
+            }
             RGBColorGet(ui32_rgb); // LECTURA DE LOS COLORES ACTUALES
             ui32_rgb[1] = 0xFFFF; // ENCIENDE EL COLOR VERDE
             RGBColorSet(ui32_rgb);
@@ -374,97 +410,118 @@ static portTASK_FUNCTION(tareaControl, pvParameters)
 
         if ((ui32FlagsAnomalia & TIME_STOP) == TIME_STOP)
         {
-            xEventGroupClearBits(FlagBoton, BOTON_DESACTIVADO) ; //desativamos el flag para bloquear productora
-            TimerEnable(TIMER2_BASE, TIMER_A);
+            xEventGroupClearBits(FlagBoton, BOTON_DESACTIVADO); //desativamos el flag para bloquear productora
+            TimerEnable(TIMER2_BASE, TIMER_A); //Timer hardware que cuenta 20 segundos
+
+            //Actualización del Timer en QT, mediante Timer Software
+
+            xTimerStart(timerParada,0);
 
 
         }
 
-        if ((ui32FlagsAnomalia & TEMP_HAZARDOUS) == TEMP_HAZARDOUS)
+        if ((ui32FlagsAnomalia & TEMP_HAZARDOUS) == TEMP_HAZARDOUS) //Mientras la temperatura sea crítica se ejecuta esto
         {
 
-            //Parpadeo de los LEDs de la TIVA a 1 Hz
-            //La función hace parpadear a los valores que se han actualizado.
+            parametro.cuenta_atras = (uint8_t) (uint32_t) pvTimerGetTimerID(
+                    timerApagadoTemperatura); // actualiza el valor de los segundo restantes
 
-
-            parametro.cuenta_atras = (uint8_t)(uint32_t) pvTimerGetTimerID(timerApagadoTemperatura); // actualiza el valor de los segundo restantes
-
-            // Para que active la cuenta atrás solo 1 vez
-            if (parametro.temp_hazardous == 0)
+            //Depuracion MODIFICAR el valor del timer
+            uint8_t nuevoValorCuenta;
+            if(xQueueReceive(mailbox_modifica, &nuevoValorCuenta,0) == pdTRUE)
             {
-                start_timer_3seg = 1;
-                parametro.temp_hazardous = 1; //activamos el aviso de temperatura crítica
-                parametro.cuenta_atras = 30; //inicializamos la cuenta atrás del reloj
-                vTimerSetTimerID(timerApagadoTemperatura, (void *) 30);
-                xTimerStart(timerApagadoTemperatura,0);
+                vTimerSetTimerID(timerApagadoTemperatura, (void *) nuevoValorCuenta);
             }
 
 
-            if ( pvTimerGetTimerID(timerApagadoTemperatura) == 0)  //Aviso a QT
+            // Para que active la cuenta atrás tras estar apagado
+            if (parametro.temp_hazardous == 0)
+            {
+
+                start_timer_3seg = 1;
+                parametro.temp_hazardous = 1; //activamos el aviso de temperatura crítica
+                parametro.cuenta_atras = 30; //inicializamos la cuenta atrás del reloj
+                vTimerSetTimerID(timerApagadoTemperatura, (void*) 30);
+                //Activamos Timer Y Paradeo de LEDS
+                xTimerStart(timerApagadoTemperatura, 0);
+                RGBBlinkRateSet(1.0f);
+
+            }
+
+            if (pvTimerGetTimerID(timerApagadoTemperatura) == 0)  //Aviso a QT
             {
                 parametro.war_temp_critico = 1; //aviso de QT
                 suspender_fabrica = 1;
             }
-//productora 1
-//productora 2
-//consumidora
-//temperatura
-//tareacontrol
-
         }
 
         if ((ui32FlagsAnomalia & TEMP_HAZARDOUS_OFF) == TEMP_HAZARDOUS_OFF) //cada vez que la temperatura sea menor que 400
         {
 
-         if (parametro.temp_hazardous == 1 )
-         {
-
-
-            if (start_timer_3seg == 1 ) //1 vez
-            {
-                start_timer_3seg = 0;
-                vTimerSetTimerID(timerTresSeg, (void *)6);
-                xTimerStart(timerTresSeg,0); //activa el timer 3 seg
-
-            }
-
-
-
-
-            if (param_temp.soldadura > 400) //timer comprueba y es mayor que 400, paramos timer
-            {
-              xTimerStop(timerTresSeg,0);
-            }
-
-            if(param_temp.soldadura < 400 && pvTimerGetTimerID(timerTresSeg) == 0) //Se ha reestablecido la temperatura y la fábrica continua con su producción
+            if (parametro.temp_hazardous == 1)
             {
 
-                parametro.temp_hazardous = 0; //sitación correcta
-                xTimerStop(timerApagadoTemperatura,0);
-                vTimerSetTimerID(timerApagadoTemperatura, (void *) 30);
-                parametro.cuenta_atras = 30; //inicializamos la cuenta atrás del reloj
+                if (start_timer_3seg == 1) //1 vez
+                {
+                    start_timer_3seg = 0;
+                    vTimerSetTimerID(timerTresSeg, (void*) 6);
+                    xTimerStart(timerTresSeg, 0); //activa el timer 3 seg
 
+                }
+
+                if (param_temp.soldadura > 400) //timer comprueba y es mayor que 400, paramos timer
+                {
+                    xTimerStop(timerTresSeg, 0);
+                    start_timer_3seg = 1; // Reanudar de nuevo el timer
+                }
+
+                if (param_temp.soldadura < 400
+                        && pvTimerGetTimerID(timerTresSeg) == 0) //Se ha reestablecido la temperatura y la fábrica continua con su producción
+                {
+
+                    parametro.temp_hazardous = 0; //sitación correcta
+                    //Paramos el reloj y paramos parpadero
+
+                    xTimerStop(timerApagadoTemperatura, 0);
+                    RGBBlinkRateSet(0.0f);
+
+                    vTimerSetTimerID(timerApagadoTemperatura, (void*) 30);
+                    parametro.cuenta_atras = 30; //inicializamos la cuenta atrás del reloj
+
+                }
             }
-         }
         }
 //Enviar el mensaje anomalías
 
-        parametro.bloqueado_1 = g_ui8_prod1_block;
-        parametro.bloqueado_2 = g_ui8_prod2_block;
+        param_bloqueo.bloqueado_1 = g_ui8_prod1_block;
+        param_bloqueo.bloqueado_2 = g_ui8_prod2_block;
+
+//Actualizar contador de TIMESTOP para QT
+        parametro.temp_time_stop = (uint8_t)(uint32_t) pvTimerGetTimerID(timerParada);
 
 
-        ui32Numdatos = create_frame(pui8Frame, MENSAJE_ANOMALIAS,
-                                   &parametro, sizeof(parametro),
-                                   MAX_FRAME_SIZE);
+        ui32Numdatos = create_frame(pui8Frame, MENSAJE_ANOMALIAS, &parametro,
+                                    sizeof(parametro),
+                                    MAX_FRAME_SIZE);
         if (ui32Numdatos >= 0)
         {
             xSemaphoreTake(mutexUSB, portMAX_DELAY);
             send_frame(pui8Frame, ui32Numdatos);
             xSemaphoreGive(mutexUSB);
-        } //while
+        }
+
+        ui32Numdatos = create_frame(pui8Frame, MENSAJE_BLOQUEO, &param_bloqueo,
+                                    sizeof(param_bloqueo),
+                                    MAX_FRAME_SIZE);
+        if (ui32Numdatos >= 0)
+        {
+            xSemaphoreTake(mutexUSB, portMAX_DELAY);
+            send_frame(pui8Frame, ui32Numdatos);
+            xSemaphoreGive(mutexUSB);
+        }
 
         //Suspensión de tareas
-        if ( suspender_fabrica == 1) // Timer acabado
+        if (suspender_fabrica == 1) // Timer acabado
         {
             vTaskSuspend(handleProductora1);
             vTaskSuspend(handleProductora2);
@@ -473,217 +530,242 @@ static portTASK_FUNCTION(tareaControl, pvParameters)
             vTaskSuspend(NULL); // porque estamos dentro de la tarea control
         }
 
-    } //taks
+    } // WHILE
 
+} //TAREA
 
+static portTASK_FUNCTION(productoraGenerica, pvParameters)
+{
+    xEventGroupWaitBits(FlagEvento, INICIO_START, pdFALSE, pdTRUE,
+    portMAX_DELAY); //Espera al botón de inicio
+    PARAM_PRODUCTORA *param = (PARAM_PRODUCTORA*) pvParameters;
+    INFO_COLA info_cola;
+    int32_t N = 10000;
+    info_cola.IDProd = param->IDProd;
+    int32_t i32Numdatos;
+    uint8_t pui8Frame[MAX_FRAME_SIZE];
+    uint32_t ui32_rgb[3];
 
-}
-    static portTASK_FUNCTION(productoraGenerica, pvParameters)
+    //PARAMETROS BLOQUEO
+    PARAM_MENSAJE_BLOQUEO parametro = { 0 };
+
+    while (1)
     {
-        xEventGroupWaitBits(FlagEvento, INICIO_START, pdFALSE, pdTRUE,
-        portMAX_DELAY); //Espera al botón de inicio
-        PARAM_PRODUCTORA *param = (PARAM_PRODUCTORA*) pvParameters;
-        INFO_COLA info_cola;
-        int32_t N = 10000;
-        info_cola.IDProd = param->IDProd;
-        int32_t i32Numdatos;
-        uint8_t pui8Frame[MAX_FRAME_SIZE];
-        uint32_t ui32_rgb[3];
-
-        //PARAMETROS BLOQUEO
-        PARAM_MENSAJE_ANOMALIAS parametro = {0};
-
-
-        while (1)
-        {
-            //BLOQUEO DE TAREA PRODUCTORA PARA EL TIME_STOP
-            xEventGroupWaitBits(FlagBoton, BOTON_DESACTIVADO, pdFALSE, pdFALSE, portMAX_DELAY);
-            xEventGroupWaitBits(FlagObjetivo,OBJETIVO_NO_CUMPLIDO , pdFALSE, pdFALSE, portMAX_DELAY);
-            info_cola.id = (rand() % N) + 1;
-            vTaskDelay(param->retardo * configTICK_RATE_HZ);
+        //BLOQUEO DE TAREA PRODUCTORA PARA EL TIME_STOP
+        xEventGroupWaitBits(FlagBoton, BOTON_DESACTIVADO, pdFALSE, pdFALSE,
+                            portMAX_DELAY);
+        xEventGroupWaitBits(FlagObjetivo, OBJETIVO_NO_CUMPLIDO, pdFALSE,
+                            pdFALSE, portMAX_DELAY);
+        info_cola.id = (rand() % N) + 1;
+        vTaskDelay(param->retardo * configTICK_RATE_HZ);
 //MAP_GPIOPinWrite(GPIO_PORTF_BASE, param->ui8Pins,param->ui8Pins);// modo GPIO
 
-            if (param->IDProd == 1)
-            {
-                while (xQueueSend(cola_prod_cons_1, &info_cola, 0) == pdFALSE)
-                { // no se ha enviado al info
-                    g_ui8_prod1_block = 1;
-                    xEventGroupSetBits(FlagAnomalia, COLA_LLENA_PROD_1); // activamos el flag
-                    xSemaphoreTake(semaforo_prod_1, portMAX_DELAY); //bloquear la tarea a través del semáforo
-                    //Cuando se ha desbloqueado
-                    parametro.bloqueado_1 = g_ui8_prod1_block; //envío tras desbloqueo
+        if (param->IDProd == 1)
+        {
+            while (xQueueSend(cola_prod_cons_1, &info_cola, 0) == pdFALSE)
+            { // no se ha enviado al info
+                g_ui8_prod1_block = 1;
+                xEventGroupSetBits(FlagAnomalia, COLA_LLENA_PROD_1); // activamos el flag
+                xSemaphoreTake(semaforo_prod_1, portMAX_DELAY); //bloquear la tarea a través del semáforo
+                //Cuando se ha desbloqueado
+                parametro.bloqueado_1 = g_ui8_prod1_block; //envío tras desbloqueo
 
-                    RGBColorGet(ui32_rgb); // LECTURA DE LOS COLORES ACTUALES
-                    ui32_rgb[0] = 0x0; // APAGA EL COLOR ROJO
-                    RGBColorSet(ui32_rgb);
+                RGBColorGet(ui32_rgb); // LECTURA DE LOS COLORES ACTUALES
+                ui32_rgb[0] = 0x0; // APAGA EL COLOR ROJO
+                RGBColorSet(ui32_rgb);
 
-
-                    i32Numdatos = create_frame(pui8Frame, MENSAJE_ANOMALIAS, &parametro,
-                                               sizeof(parametro), MAX_FRAME_SIZE);
-                    if (i32Numdatos >= 0)
-                    {
-                        xSemaphoreTake(mutexUSB, portMAX_DELAY);
-                        send_frame(pui8Frame, i32Numdatos);
-                        xSemaphoreGive(mutexUSB);
-                    }
-
+                i32Numdatos = create_frame(pui8Frame, MENSAJE_BLOQUEO,
+                                           &parametro, sizeof(parametro),
+                                           MAX_FRAME_SIZE);
+                if (i32Numdatos >= 0)
+                {
+                    xSemaphoreTake(mutexUSB, portMAX_DELAY);
+                    send_frame(pui8Frame, i32Numdatos);
+                    xSemaphoreGive(mutexUSB);
                 }
 
-                //xQueueSend(cola_prod_cons_1, &info_cola, portMAX_DELAY);
-
             }
-
-            if (param->IDProd == 2)
+            //Fuera del BLOQUEO DE COLA LLENA
+            if (TrazasActivas())
             {
-
-                while (xQueueSend(cola_prod_cons_2, &info_cola, 0) == pdFALSE)
-                { // no se ha enviado al info
-                    g_ui8_prod2_block = 1;
-                    xEventGroupSetBits(FlagAnomalia, COLA_LLENA_PROD_2); // activamos el flag
-                    xSemaphoreTake(semaforo_prod_2, portMAX_DELAY); //bloquear la tarea a través del semáforo
-                    //Cuando se ha desbloqueado
-                    parametro.bloqueado_2 = g_ui8_prod2_block;
-
-                    RGBColorGet(ui32_rgb); // LECTURA DE LOS COLORES ACTUALES
-                    ui32_rgb[1] = 0x0; // APAGA EL COLOR VERDE
-                    RGBColorSet(ui32_rgb);
-
-                    i32Numdatos = create_frame(pui8Frame, MENSAJE_ANOMALIAS, &parametro,
-                                                                   sizeof(parametro), MAX_FRAME_SIZE);
-                                        if (i32Numdatos >= 0)
-                                        {
-                                            xSemaphoreTake(mutexUSB, portMAX_DELAY);
-                                            send_frame(pui8Frame, i32Numdatos);
-                                            xSemaphoreGive(mutexUSB);
-                                        }
-                }
-
-                //xQueueSend(cola_prod_cons_2, &info_cola, portMAX_DELAY);
-
+                xSemaphoreTake(mutexUART, portMAX_DELAY);
+                UARTprintf("Tarea %u. Nuevo kit de componentes con ID %u \r\n",
+                           info_cola.IDProd, info_cola.id);
+                xSemaphoreGive(mutexUART);
             }
+
+            //xQueueSend(cola_prod_cons_1, &info_cola, portMAX_DELAY);
+        }
+
+        if (param->IDProd == 2)
+        {
+
+            while (xQueueSend(cola_prod_cons_2, &info_cola, 0) == pdFALSE)
+            { // no se ha enviado al info
+                g_ui8_prod2_block = 1;
+                xEventGroupSetBits(FlagAnomalia, COLA_LLENA_PROD_2); // activamos el flag
+                xSemaphoreTake(semaforo_prod_2, portMAX_DELAY); //bloquear la tarea a través del semáforo
+                //Cuando se ha desbloqueado
+                parametro.bloqueado_2 = g_ui8_prod2_block;
+
+                RGBColorGet(ui32_rgb); // LECTURA DE LOS COLORES ACTUALES
+                ui32_rgb[1] = 0x0; // APAGA EL COLOR VERDE
+                RGBColorSet(ui32_rgb);
+
+                i32Numdatos = create_frame(pui8Frame, MENSAJE_BLOQUEO,
+                                           &parametro, sizeof(parametro),
+                                           MAX_FRAME_SIZE);
+                if (i32Numdatos >= 0)
+                {
+                    xSemaphoreTake(mutexUSB, portMAX_DELAY);
+                    send_frame(pui8Frame, i32Numdatos);
+                    xSemaphoreGive(mutexUSB);
+                }
+            }
+
+            //Fuera del BLOQUEO DE COLA LLENA
+            if (TrazasActivas())
+            {
+                xSemaphoreTake(mutexUART, portMAX_DELAY);
+                UARTprintf("Tarea %u. Nuevo kit de componentes con ID %u \r\n",
+                           info_cola.IDProd, info_cola.id);
+                xSemaphoreGive(mutexUART);
+            }
+
+            //xQueueSend(cola_prod_cons_2, &info_cola, portMAX_DELAY);
+
+        }
 //MAP_GPIOPinWrite(GPIO_PORTF_BASE, param->ui8Pins, 0); //Modo GPIO
 
-        }
     }
+}
 
-    static portTASK_FUNCTION(consumidora1,pvParameters)
+static portTASK_FUNCTION(consumidora1,pvParameters)
+{
+    uint8_t pui8Frame[MAX_FRAME_SIZE];
+    int32_t i32Numdatos;
+    INFO_COLA info_cola;
+    QueueSetMemberHandle_t cola_activada;
+
+    while (1)
     {
-        uint8_t pui8Frame[MAX_FRAME_SIZE];
-        int32_t i32Numdatos;
-        INFO_COLA info_cola;
-        QueueSetMemberHandle_t cola_activada;
+        cola_activada = xQueueSelectFromSet(grupo_colas, portMAX_DELAY);
 
-        while (1)
+        if (cola_activada == cola_prod_cons_1)
         {
-            cola_activada = xQueueSelectFromSet(grupo_colas, portMAX_DELAY);
-
-
-            if (cola_activada == cola_prod_cons_1)
+            if (xSemaphoreTake(semaforo_cont_prod,0) == pdFALSE)
             {
-                if (xSemaphoreTake(semaforo_cont_prod,0) == pdFALSE)
-                {
-                    xEventGroupClearBits(FlagObjetivo,OBJETIVO_NO_CUMPLIDO); //quitamos el flag para bloquear productora
-                }
-
-                else
-                {
-                    counter_objetivo --;
-                    xQueueReceive(cola_prod_cons_1, &info_cola, 0);
-                    vTaskDelay(4 * configTICK_RATE_HZ); // segundos retraso
-                    counter++;
-                    counter_prod_1 ++ ;
-                }
-
+                xEventGroupClearBits(FlagObjetivo, OBJETIVO_NO_CUMPLIDO); //quitamos el flag para bloquear productora
             }
 
-            if (cola_activada == cola_prod_cons_2)
+            else
             {
-                if (xSemaphoreTake(semaforo_cont_prod,0) == pdFALSE)
-                {
-                    xEventGroupClearBits(FlagObjetivo,OBJETIVO_NO_CUMPLIDO); //quitamos el flag para bloquear productora
-                }
-
-                else{
-                    counter_objetivo --;
-                    xQueueReceive(cola_prod_cons_2, &info_cola, 0);
-                    vTaskDelay(3 * configTICK_RATE_HZ); // segundos retraso
-                    counter++;
-                    counter_prod_2 ++ ;
-                }
+                counter_objetivo--;
+                xQueueReceive(cola_prod_cons_1, &info_cola, 0);
+                vTaskDelay(4 * configTICK_RATE_HZ); // segundos retraso
+                counter++;
+                counter_prod_1++;
             }
 
-            PARAM_MENSAJE_CONTADOR parametro;
-            parametro.numMensaje_objetivo = counter_objetivo;
-            parametro.numMensajes = counter; // counter es global
-            parametro.numMensajes_prod_1 = counter_prod_1;
-            parametro.numMensajes_prod_2 = counter_prod_2;
-            parametro.id = info_cola.id; //lee el kid ID de la tarea productora
-            parametro.IDProd = info_cola.IDProd; //lee el id de la productora
-            //El mensaje esta bien pero no esta implementado
-            i32Numdatos = create_frame(pui8Frame, MENSAJE_CONTADOR, &parametro,
-                                       sizeof(parametro), MAX_FRAME_SIZE);
-            if (i32Numdatos >= 0)
+        }
+
+        if (cola_activada == cola_prod_cons_2)
+        {
+            if (xSemaphoreTake(semaforo_cont_prod,0) == pdFALSE)
             {
-                xSemaphoreTake(mutexUSB, portMAX_DELAY);
-                send_frame(pui8Frame, i32Numdatos);
-                xSemaphoreGive(mutexUSB);
+                xEventGroupClearBits(FlagObjetivo, OBJETIVO_NO_CUMPLIDO); //quitamos el flag para bloquear productora
+            }
+
+            else
+            {
+                counter_objetivo--;
+                xQueueReceive(cola_prod_cons_2, &info_cola, 0);
+                vTaskDelay(3 * configTICK_RATE_HZ); // segundos retraso
+                counter++;
+                counter_prod_2++;
             }
         }
-    }
 
-    static portTASK_FUNCTION(temperatura,pvParameters)
+        // MENSAJE DE DEPURACION / TRAZAS
+        if (TrazasActivas())
+        {
+            xSemaphoreTake(mutexUART, portMAX_DELAY);
+            UARTprintf("Ensamblado nuevo producto desde la tarea %u con ID %u\r\n",
+                       info_cola.IDProd,
+                       info_cola.id);
+            xSemaphoreGive(mutexUART);
+        }
+
+
+        //ENVIO de LOS PARAMETROS CONTADOR A QT
+
+        PARAM_MENSAJE_CONTADOR parametro;
+        parametro.numMensaje_objetivo = counter_objetivo;
+        parametro.numMensajes = counter; // counter es global
+        parametro.numMensajes_prod_1 = counter_prod_1;
+        parametro.numMensajes_prod_2 = counter_prod_2;
+        parametro.id = info_cola.id; //lee el kid ID de la tarea productora
+        parametro.IDProd = info_cola.IDProd; //lee el id de la productora
+        //El mensaje esta bien pero no esta implementado
+        i32Numdatos = create_frame(pui8Frame, MENSAJE_CONTADOR, &parametro,
+                                   sizeof(parametro), MAX_FRAME_SIZE);
+        if (i32Numdatos >= 0)
+        {
+            xSemaphoreTake(mutexUSB, portMAX_DELAY);
+            send_frame(pui8Frame, i32Numdatos);
+            xSemaphoreGive(mutexUSB);
+        }
+    }
+}
+
+static portTASK_FUNCTION(temperatura,pvParameters)
+{
+    uint8_t pui8Frame[MAX_FRAME_SIZE];
+    PARAM_MENSAJE_TEMPERATURA datosTemperatura;
+    int32_t i32Numdatos;
+    uint32_t ui32_rgb[3];
+
+    while (1)
     {
-        uint8_t pui8Frame[MAX_FRAME_SIZE];
-        PARAM_MENSAJE_TEMPERATURA datosTemperatura;
-        int32_t i32Numdatos;
-        uint32_t ui32_rgb[3];
+        xQueuePeek(mailbox_temperatura, &datosTemperatura, portMAX_DELAY);
+        datosTemperatura.ambiente = (1475
+                - ((2475 * datosTemperatura.ambiente)) / 4096) / 10; //Fórmula para sensor interno, aparece en el datasheet
+        datosTemperatura.soldadura = 300
+                + ((datosTemperatura.soldadura * 150) / 4095); //Cuando el valor máximo es 3.3V vamos obtener un valor de 4095
 
-        while (1)
+        // Si la temperatura es máxima (450) máximo valor de led, si la temperatura es mínima(300) mínimo valor de led.
+        RGBColorGet(ui32_rgb); // LECTURA DE LOS COLORES ACTUALES
+        ui32_rgb[2] = brillo_temperatura(datosTemperatura.soldadura); // Controla EL COLOR AZUL
+        RGBColorSet(ui32_rgb);
+
+        xQueueOverwrite(mailbox_temperatura_control, &datosTemperatura); //metemos el valor de la temperatura en un mailbox para conectarla con la tarea control
+
+        if (datosTemperatura.soldadura >= 410)
         {
-            xQueuePeek(mailbox_temperatura, &datosTemperatura, portMAX_DELAY);
-            datosTemperatura.ambiente = (1475
-                    - ((2475 * datosTemperatura.ambiente)) / 4096) / 10; //Fórmula para sensor interno, aparece en el datasheet
-            datosTemperatura.soldadura = 300
-                    + ((datosTemperatura.soldadura * 150) / 4095); //Cuando el valor máximo es 3.3V vamos obtener un valor de 4095
-
-            // Si la temperatura es máxima (450) máximo valor de led, si la temperatura es mínima(300) mínimo valor de led.
-            RGBColorGet(ui32_rgb); // LECTURA DE LOS COLORES ACTUALES
-            ui32_rgb[2] = brillo_temperatura(datosTemperatura.soldadura); // Controla EL COLOR AZUL
-            RGBColorSet(ui32_rgb);
-
-            xQueueOverwrite(mailbox_temperatura_control, &datosTemperatura); //metemos el valor de la temperatura en un mailbox para conectarla con la tarea control
-
-            if (datosTemperatura.soldadura >= 410)
-            {
-                xEventGroupSetBits(FlagAnomalia, TEMP_HAZARDOUS); // activamos el flag
-            }
-
-            if (datosTemperatura.soldadura < 400)
-            {
-                xEventGroupSetBits(FlagAnomalia, TEMP_HAZARDOUS_OFF);
-            }
-
-
-
-            i32Numdatos = create_frame(pui8Frame, MENSAJE_TEMPERATURA,
-                                       &datosTemperatura,
-                                       sizeof(datosTemperatura),
-                                       MAX_FRAME_SIZE);
-            if (i32Numdatos >= 0)
-            {
-                xSemaphoreTake(mutexUSB, portMAX_DELAY);
-                send_frame(pui8Frame, i32Numdatos);
-                xSemaphoreGive(mutexUSB);
-            }
+            xEventGroupSetBits(FlagAnomalia, TEMP_HAZARDOUS); // activamos el flag
         }
 
+        if (datosTemperatura.soldadura < 400)
+        {
+            xEventGroupSetBits(FlagAnomalia, TEMP_HAZARDOUS_OFF);
+        }
+
+        i32Numdatos = create_frame(pui8Frame, MENSAJE_TEMPERATURA,
+                                   &datosTemperatura, sizeof(datosTemperatura),
+                                   MAX_FRAME_SIZE);
+        if (i32Numdatos >= 0)
+        {
+            xSemaphoreTake(mutexUSB, portMAX_DELAY);
+            send_frame(pui8Frame, i32Numdatos);
+            xSemaphoreGive(mutexUSB);
+        }
     }
+
+}
 
 //FUNCIONES AUXILIARES
 //---------------------------
 //---------------------------
-
-
 
 //============================
 // Función que devuelve el valor en uint32_t para el led correspondiente según el valor de temperatura
@@ -692,475 +774,560 @@ static portTASK_FUNCTION(tareaControl, pvParameters)
 // 450 grados establece un valor de 0xFFFF; 65535
 // Valores intermedios realizamos una función lineal
 // uint32_t temperatura: es el valor de la temperatura registrada de forma externa mediante ADC
-    uint32_t brillo_temperatura(uint32_t temperatura)
-    {
-        if (temperatura <= 300)
-            return 0;
-        if (temperatura >= 450)
-            return 0xFFFF;
-        return ((temperatura - 300) * 65535) / 150;
-    }
+uint32_t brillo_temperatura(uint32_t temperatura)
+{
+    if (temperatura <= 300)
+        return 0;
+    if (temperatura >= 450)
+        return 0xFFFF;
+    return ((temperatura - 300) * 65535) / 150;
+}
+
+//============================
+// Función que devuelve si la TRAZA está activa o no
+// Esta función NO BLOQUEA, es consultiva
+// NO recibe ningún dato
+// Devuelve el resultado:
+//  return ((bits & TRAZA_ACTIVA) == TRAZA_ACTIVA);
+static uint8_t TrazasActivas(void)
+{
+    EventBits_t bits;
+
+    //Consultamos los bits de grupo de FLAG
+    bits = xEventGroupGetBits(FlagTrazas);
+
+    //Realiza una comprobación si traza está activada
+    return ((bits & TRAZA_ACTIVA) == TRAZA_ACTIVA);
+}
 
 //*****************************************************************************
 //
 // Funcion main(), Inicializa los perifericos, crea las tareas, etc... y arranca el bucle del sistema
 //
 //*****************************************************************************
-    int main(void)
+int main(void)
+{
+
+    //Parámetros de tareas
+    static PARAM_PRODUCTORA prod1;
+    prod1.IDProd = 1;
+    prod1.retardo = 3; //segundos
+    //prod1.ui8Pins = GPIO_PIN_1; //rojo
+
+    static PARAM_PRODUCTORA prod2;
+    prod2.IDProd = 2;
+    prod2.retardo = 4; //segundos
+    //prod2.ui8Pins = GPIO_PIN_3; //verde
+
+    //Variables PWM
+    uint32_t pwm_clk; //representa la frecuencia del reloj del PWM
+    uint32_t val_load; // Variable a cargar en el generador PWM para conseguir la frecuencia PWM_BASE_FREQ, usando como reloj del generador PWM, pwm_clk
+    uint8_t duty = 50; // variable auxiliar para modificar el ciclo de trabajo entre el 1% y el 100%
+
+    //
+    // Reloj del sistema definido a 40MHz
+    //
+    MAP_SysCtlClockSet(
+    SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
+
+    //-----------------------------------------------------------------
+    //----CONFIGURACION PWM--------------------------------------------
+    //-----------------------------------------------------------------
+
+    //PWM
+
+    //Establecer el reloj generador PWM (40MHz/64 = 625KHz)
+    SysCtlPWMClockSet(SYSCTL_PWMDIV_64);
+
+    // Habilitar módulos y puerto de salida
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM0); //Para le PB4
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+
+    //Habilitación módulo leds
+    //SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM1); //Habilita modulo PWM
+    //SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);    // Habilita puerto salida para señal PWM (ver en documentacion que pin se corresponde a cada módulo PWM)
+
+    //Habilitamos PB4
+    GPIOPinTypePWM(GPIO_PORTB_BASE, GPIO_PIN_4);
+    GPIOPinConfigure(GPIO_PB4_M0PWM2); // del módulo PWM1 (ver tabla 10.2 Data-Sheet, columnas 4 y 5)
+
+    pwm_clk = SysCtlClockGet() / 64; //Frecuencia de la onda PWM (625Khz)
+    val_load = (pwm_clk / PWM_BASE_FREQ) - 1;
+
+    PWMGenConfigure(PWM0_BASE, PWM_GEN_1, PWM_GEN_MODE_DOWN);
+    PWMGenPeriodSet(PWM0_BASE, PWM_GEN_1, val_load);
+    PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, duty * val_load / 100); //50/100 = 0.5
+    PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, true); // Habilita la salida de la señal
+
+    //-----------------------------------------------------------------
+    //----CONFIGURACION ADC--------------------------------------------
+    //-----------------------------------------------------------------
+
+    // Vamos a utilizar el Timer 4
+
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0); // Habilita el ADC0
+    //Deshabilitar para configurar
+    ADCSequenceDisable(ADC0_BASE, 1); //Secuenciador 1
+
+    //Configuramos el Sobremuestro
+    ADCHardwareOversampleConfigure(ADC0_BASE, 64);
+
+    ADCSequenceConfigure(ADC0_BASE, 1, ADC_TRIGGER_TIMER, 0);
+    ADCSequenceStepConfigure(ADC0_BASE, 1, 0, ADC_CTL_TS); //sensor interno de la TIVA
+    ADCSequenceStepConfigure(ADC0_BASE, 1, 1,
+    ADC_CTL_CH0 | ADC_CTL_IE | ADC_CTL_END);
+
+    IntRegister(INT_ADC0SS1, ADC_Handler);
+    //Añadimos prioridades
+    MAP_IntPrioritySet(INT_ADC0SS1, 0xE0); //Prioridad más baja según manual
+
+    ADCIntClear(ADC0_BASE, 1);
+
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER4);
+    MAP_TimerConfigure(TIMER4_BASE, TIMER_CFG_PERIODIC);
+    MAP_TimerLoadSet(TIMER4_BASE, TIMER_A, (SysCtlClockGet() /2) - 1); //periodo del ADC 500ms
+    MAP_TimerControlTrigger(TIMER4_BASE, TIMER_A, true);
+
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE); //habilito el puerto E
+    MAP_GPIOPinTypeADC(GPIO_PORTE_BASE, GPIO_PIN_3); //configurar el pin como ADC
+
+    //HABILITAMOS
+
+    // Obtiene el reloj del sistema
+    g_ui32SystemClock = SysCtlClockGet();
+
+    //Habilita el clock gating de los perifericos durante el bajo consumo --> perifericos que se desee activos en modo Sleep
+    //                                                                        deben habilitarse con SysCtlPeripheralSleepEnable
+    MAP_SysCtlPeripheralClockGating(true);
+    MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_PWM0);
+    MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOB);
+    MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOF);
+    MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_PWM1);
+    MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_USB0);
+    MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_ADC0);
+    MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER0);
+    MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER1);
+    MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER2);
+    MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER3);
+    MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER4);
+    MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_WTIMER5);
+
+    MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOE);
+
+    //Habilitamos Leds
+    RGBInit(1); //inilizaciza los leds
+    RGBEnable();
+
+    //Habilitamos puerto
+    // Habilita el periférico: Puerto F (LEDs)
+    //MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+    // Configura pines PF1 como salidas (control de LEDs)
+    //MAP_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1); //ROJO
+    //MAP_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3); //VERDE
+
+    //Habilitamos Switches.
+    ButtonsInit();
+
+    //Interrupciones  de switches
+    MAP_GPIOIntTypeSet(GPIO_PORTF_BASE, RIGHT_BUTTON, GPIO_FALLING_EDGE);
+    MAP_IntPrioritySet(INT_GPIOF, 0xE0);
+    MAP_GPIOIntEnable(GPIO_PORTF_BASE, RIGHT_BUTTON);
+    MAP_IntEnable(INT_GPIOF);
+    IntRegister(INT_GPIOF, GPIOF_Handler);
+
+    //TIMER 2 Cuenta atrás para activar productora tras switches
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
+    MAP_TimerConfigure(TIMER2_BASE, TIMER_CFG_ONE_SHOT);
+    MAP_TimerLoadSet(TIMER2_BASE, TIMER_A, SysCtlClockGet() * 20 - 1); // 20 segundos
+    MAP_TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
+    MAP_IntEnable(INT_TIMER2A);
+    MAP_IntPrioritySet(INT_TIMER2A, 0xE0);
+    IntRegister(INT_TIMER2A, TIMER2A_Handler);
+
+    // Inicializa el subsistema de medida del uso de CPU (mide el tiempo que la CPU no esta dormida)
+    // Para eso utiliza un timer, que aqui hemos puesto que sea el TIMER3 (ultimo parametro que se pasa a la funcion)
+    // (y por tanto este no se deberia utilizar para otra cosa).
+    CPUUsageInit(g_ui32SystemClock, configTICK_RATE_HZ / 10, 3);
+
+    /**                                              Creacion de tareas 									**/
+    // Inicializa el sistema de depuraciÃ³n e interprete de comandos por terminal UART
+    if (initCommandLine(256, tskIDLE_PRIORITY + 1) != pdPASS)
     {
-
-        //Parámetros de tareas
-        static PARAM_PRODUCTORA prod1;
-        prod1.IDProd = 1;
-        prod1.retardo = 3; //segundos
-        //prod1.ui8Pins = GPIO_PIN_1; //rojo
-
-        static PARAM_PRODUCTORA prod2;
-        prod2.IDProd = 2;
-        prod2.retardo = 4; //segundos
-        //prod2.ui8Pins = GPIO_PIN_3; //verde
-
-        //Variables PWM
-        uint32_t pwm_clk; //representa la frecuencia del reloj del PWM
-        uint32_t val_load; // Variable a cargar en el generador PWM para conseguir la frecuencia PWM_BASE_FREQ, usando como reloj del generador PWM, pwm_clk
-        uint8_t duty = 50; // variable auxiliar para modificar el ciclo de trabajo entre el 1% y el 100%
-
-        //
-        // Reloj del sistema definido a 40MHz
-        //
-        MAP_SysCtlClockSet(
-        SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
-
-        //-----------------------------------------------------------------
-        //----CONFIGURACION PWM--------------------------------------------
-        //-----------------------------------------------------------------
-
-        //PWM
-
-
-        //Establecer el reloj generador PWM (40MHz/64 = 625KHz)
-        SysCtlPWMClockSet(SYSCTL_PWMDIV_64);
-
-        // Habilitar módulos y puerto de salida
-        SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM0); //Para le PB4
-        SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
-
-        //Habilitación módulo leds
-        //SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM1); //Habilita modulo PWM
-        //SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);    // Habilita puerto salida para señal PWM (ver en documentacion que pin se corresponde a cada módulo PWM)
-
-        //Habilitamos PB4
-        GPIOPinTypePWM(GPIO_PORTB_BASE, GPIO_PIN_4);
-        GPIOPinConfigure(GPIO_PB4_M0PWM2); // del módulo PWM1 (ver tabla 10.2 Data-Sheet, columnas 4 y 5)
-
-        pwm_clk = SysCtlClockGet() / 64; //Frecuencia de la onda PWM (625Khz)
-        val_load = (pwm_clk / PWM_BASE_FREQ) - 1;
-
-        PWMGenConfigure(PWM0_BASE, PWM_GEN_1, PWM_GEN_MODE_DOWN);
-        PWMGenPeriodSet(PWM0_BASE, PWM_GEN_1, val_load);
-        PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, duty * val_load / 100); //50/100 = 0.5
-        PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, true); // Habilita la salida de la señal
-
-        //-----------------------------------------------------------------
-        //----CONFIGURACION ADC--------------------------------------------
-        //-----------------------------------------------------------------
-        MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0); // Habilita el ADC0
-        //Deshabilitar para configurar
-        ADCSequenceDisable(ADC0_BASE, 1); //Secuenciador 1
-
-        //Configuramos el Sobremuestro
-        ADCHardwareOversampleConfigure(ADC0_BASE, 64);
-
-        ADCSequenceConfigure(ADC0_BASE, 1, ADC_TRIGGER_TIMER, 0);
-        ADCSequenceStepConfigure(ADC0_BASE, 1, 0, ADC_CTL_TS); //sensor interno de la TIVA
-        ADCSequenceStepConfigure(ADC0_BASE, 1, 1,
-        ADC_CTL_CH0 | ADC_CTL_IE | ADC_CTL_END);
-
-        IntRegister(INT_ADC0SS1, ADC_Handler);
-        //Añadimos prioridades
-        MAP_IntPrioritySet(INT_ADC0SS1, 0xE0); //Prioridad más baja según manual
-        MAP_IntPrioritySet(INT_USB0, 0xE0);
-        ADCIntClear(ADC0_BASE, 1);
-
-        MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-        MAP_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
-        MAP_TimerLoadSet(TIMER0_BASE, TIMER_A, SysCtlClockGet() - 1);
-        MAP_TimerControlTrigger(TIMER0_BASE, TIMER_A, true);
-
-        MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE); //habilito el puerto E
-        MAP_GPIOPinTypeADC(GPIO_PORTE_BASE, GPIO_PIN_3); //configurar el pin como ADC
-
-        //HABILITAMOS
-
-        // Obtiene el reloj del sistema
-        g_ui32SystemClock = SysCtlClockGet();
-
-        //Habilita el clock gating de los perifericos durante el bajo consumo --> perifericos que se desee activos en modo Sleep
-        //                                                                        deben habilitarse con SysCtlPeripheralSleepEnable
-        MAP_SysCtlPeripheralClockGating(true);
-        MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_PWM0);
-        MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOB);
-        MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOF);
-        MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_PWM1);
-        MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_USB0);
-        MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_ADC0);
-        MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER0);
-        MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER2);
-        MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOE);
-
-
-
-
-        //Habilitamos Leds
-        RGBInit(1); //inilizaciza los leds
-        RGBEnable();
-
-
-        //Habilitamos puerto
-        // Habilita el periférico: Puerto F (LEDs)
-        //MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-        // Configura pines PF1 como salidas (control de LEDs)
-        //MAP_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1); //ROJO
-        //MAP_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3); //VERDE
-
-
-        //Habilitamos Switches.
-        ButtonsInit();
-
-        //Interrupciones  de switches
-        MAP_GPIOIntTypeSet(GPIO_PORTF_BASE, RIGHT_BUTTON, GPIO_FALLING_EDGE);
-        MAP_IntPrioritySet(INT_GPIOF, 0xE0);
-        MAP_GPIOIntEnable(GPIO_PORTF_BASE,RIGHT_BUTTON);
-        MAP_IntEnable(INT_GPIOF);
-        IntRegister(INT_GPIOF,GPIOF_Handler);
-
-        //TIMER 2 Cuenta atrás para activar productora tras switches
-        MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
-        MAP_TimerConfigure(TIMER2_BASE, TIMER_CFG_ONE_SHOT);
-        MAP_TimerLoadSet(TIMER2_BASE, TIMER_A, SysCtlClockGet() *20  - 1);// 20 segundos
-        MAP_TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
-        MAP_IntEnable(INT_TIMER2A);
-        MAP_IntPrioritySet(INT_TIMER2A, 0xE0);
-        IntRegister(INT_TIMER2A,TIMER2A_Handler);
-
-        // Inicializa el subsistema de medida del uso de CPU (mide el tiempo que la CPU no esta dormida)
-        // Para eso utiliza un timer, que aqui hemos puesto que sea el TIMER3 (ultimo parametro que se pasa a la funcion)
-        // (y por tanto este no se deberia utilizar para otra cosa).
-        CPUUsageInit(g_ui32SystemClock, configTICK_RATE_HZ / 10, 3);
-
-        /**                                              Creacion de tareas 									**/
-        // Inicializa el sistema de depuraciÃ³n e interprete de comandos por terminal UART
-        if (initCommandLine(256, tskIDLE_PRIORITY + 1) != pdPASS)
-        {
-            while (1)
-                ;
-        }
-
-        USBSerialInit(32, 32);	//Inicializo el  sistema USB
-        //
-        // Crea la tarea que gestiona los mensajes USB (definidos en USBMessageProcessingTask)
-        //
-        if (xTaskCreate(USBMessageProcessingTask, "usbser", 512, NULL,
-        tskIDLE_PRIORITY + 2,
-                        NULL) != pdPASS)
-        {
-            while (1)
-                ;
-        }
-
-        //
-        // A partir de aqui se crean las tareas de usuario, y los recursos IPC que se vayan a necesitar
-        //
-
-        mutexUART = xSemaphoreCreateMutex();
-        if (NULL == mutexUART)
-            while (1)
-                ;
-
-        mutexUSB = xSemaphoreCreateMutex();
-        if (NULL == mutexUSB)
-            while (1)
-                ;
-
-        mutexRGB = xSemaphoreCreateMutex();
-        if (NULL == mutexRGB) while (1);
-        //
-        // Pone en marcha el planificador. La llamada NO tiene retorno
-        //
-
-        cola_prod_cons_1 = xQueueCreate(3, sizeof(INFO_COLA));
-        if (NULL == cola_prod_cons_1)
-        {
-            while (1)
-                ;
-
-        }
-
-        cola_prod_cons_2 = xQueueCreate(3, sizeof(INFO_COLA));
-        if (NULL == cola_prod_cons_2)
-        {
-            while (1)
-                ;
-
-        }
-
-        grupo_colas = xQueueCreateSet(3 + 3);
-        if (NULL == grupo_colas)
-        {
-            while (1)
-                ;
-        }
-
-        mailbox_temperatura = xQueueCreate(1,
-                                           sizeof(PARAM_MENSAJE_TEMPERATURA));
-        if (NULL == mailbox_temperatura)
-        {
-            while (1)
-                ;
-        }
-
-        mailbox_temperatura_control = xQueueCreate(1, sizeof(PARAM_MENSAJE_TEMPERATURA));
-        if (NULL == mailbox_temperatura_control)
-        {
-            while(1);
-        }
-
-        //Se crea, Añadimos las dos colas al grupo de colas
-        if (xQueueAddToSet(cola_prod_cons_1, grupo_colas) != pdPASS)
-        {
-            while (1)
-                ;
-        }
-        if (xQueueAddToSet(cola_prod_cons_2, grupo_colas) != pdPASS)
-        {
-            while (1)
-                ;
-        }
-        //================================================================
-        // CREACIÓN DEL GRUPO DE FLAGS
-        //================================================================
-        FlagEvento = xEventGroupCreate();
-        if (NULL == FlagEvento)
-        {
-            while (1)
-                ;
-        }
-
-        FlagAnomalia = xEventGroupCreate();
-        if (FlagAnomalia == NULL)
-        {
-            while (1)
-                ;
-        }
-        FlagBoton = xEventGroupCreate();
-        if (FlagBoton == NULL)
-        {
-            while(1);
-        }
-
-        xEventGroupSetBits(FlagBoton, BOTON_DESACTIVADO); //activa el flag de evento
-
-        FlagObjetivo = xEventGroupCreate();
-        if (FlagObjetivo == NULL)
-        {
-            while(1);
-        }
-        xEventGroupSetBits(FlagObjetivo, OBJETIVO_NO_CUMPLIDO); // activamos para que las productoras funcionen
-
-
-        //================================================================
-        // CREACION DE SEMÁFOROS
-        //================================================================
-        semaforo_prod_1 = xSemaphoreCreateBinary();
-        if (semaforo_prod_1 == NULL)
-        {
-            while (1)
-                ;
-        }
-        semaforo_prod_2 = xSemaphoreCreateBinary();
-        if (semaforo_prod_2 == NULL)
-        {
-            while (1)
-                ;
-        }
-
-        //================================================================
-        // CREACIÓN DE TIMER
-        //================================================================
-
-        timerApagadoTemperatura = xTimerCreate("Cuenta30seg", pdMS_TO_TICKS(1000),pdTRUE,(void *)30, Timer1CallBack); //Contará 30 veces 1 segundo
-        if(timerApagadoTemperatura == NULL)
-        {
-            while(1);
-        }
-
-
-        timerTresSeg = xTimerCreate("Cuenta3seg", pdMS_TO_TICKS(500),pdTRUE,(void *)6, Timer2CallBack); //Cuenta 500 ms 6 veces = 3 segundos para resolver temperatura crítica
-                if(timerTresSeg == NULL)
-                {
-                    while(1);
-                }
-
-
-
-        //================================================================
-        //======CREACIÓN DE TAREAS========================================
-        //================================================================
-
-        if ((xTaskCreate(tareaControl, "Control", 512, NULL,
-        tskIDLE_PRIORITY + 1, //Revisar el tema de la prioridad porque controla a las demás.
-        &handleControl) != pdPASS))
-        {
-            while (1)
-            {
-
-            }
-        }
-
-        if ((xTaskCreate(productoraGenerica, "Productor1", 128, &prod1,
-        tskIDLE_PRIORITY + 1,
-        &handleProductora1) != pdPASS))
-        {
-            while (1)
-            {
-
-            }
-        }
-
-        if ((xTaskCreate(productoraGenerica, "Productor2", 128, &prod2,
-        tskIDLE_PRIORITY + 1,
-        &handleProductora2) != pdPASS))
-        {
-            while (1)
-            {
-
-            }
-        }
-
-        if ((xTaskCreate(consumidora1, "Consumidor", 128, NULL,
-        tskIDLE_PRIORITY + 1,
-        &handleConsumidora) != pdPASS))
-        {
-            while (1)
-            {
-
-            }
-        }
-
-        if ((xTaskCreate(temperatura, "Temperatura", 128, NULL,
-        tskIDLE_PRIORITY + 1,
-        &handleTemperatura) != pdPASS))
-        {
-            while (1)
-            {
-
-            }
-        }
-
-        //================================================================
-        //======FIN DE TAREAS=============================================
-        //================================================================
-
-        vTaskStartScheduler(); //el RTOS habilita las interrupciones al entrar aqui, asi que no hace falta habilitarlas
-
-        //De la funcion vTaskStartScheduler no se sale nunca... a partir de aqui pasan a ejecutarse las tareas.
+        while (1)
+            ;
+    }
+
+    USBSerialInit(32, 32);	//Inicializo el  sistema USB
+    //
+    // Crea la tarea que gestiona los mensajes USB (definidos en USBMessageProcessingTask)
+    //
+    if (xTaskCreate(USBMessageProcessingTask, "usbser", 512, NULL,
+    tskIDLE_PRIORITY + 2,
+                    NULL) != pdPASS)
+    {
+        while (1)
+            ;
+    }
+
+    //
+    // A partir de aqui se crean las tareas de usuario, y los recursos IPC que se vayan a necesitar
+    //
+
+//================================================================
+// CREACIÓN DE MUTEX
+//================================================================
+
+    mutexUART = xSemaphoreCreateMutex();
+    if (NULL == mutexUART)
+        while (1)
+            ;
+
+    mutexUSB = xSemaphoreCreateMutex();
+    if (NULL == mutexUSB)
+        while (1)
+            ;
+
+    mutexRGB = xSemaphoreCreateMutex();
+    if (NULL == mutexRGB)
+        while (1)
+            ;
+    //
+    // Pone en marcha el planificador. La llamada NO tiene retorno
+    //
+
+    //================================================================
+    // CREACIÓN DE COLAS
+    //================================================================
+    cola_prod_cons_1 = xQueueCreate(3, sizeof(INFO_COLA));
+    if (NULL == cola_prod_cons_1)
+    {
+        while (1)
+            ;
+
+    }
+
+    cola_prod_cons_2 = xQueueCreate(3, sizeof(INFO_COLA));
+    if (NULL == cola_prod_cons_2)
+    {
+        while (1)
+            ;
+
+    }
+
+    grupo_colas = xQueueCreateSet(3 + 3);
+    if (NULL == grupo_colas)
+    {
+        while (1)
+            ;
+    }
+    //================================================================
+    // CREACIÓN DE MAILBOX
+    //================================================================
+
+    mailbox_temperatura = xQueueCreate(1, sizeof(PARAM_MENSAJE_TEMPERATURA));
+    if (NULL == mailbox_temperatura)
+    {
+        while (1)
+            ;
+    }
+
+    mailbox_temperatura_control = xQueueCreate(
+            1, sizeof(PARAM_MENSAJE_TEMPERATURA));
+    if (NULL == mailbox_temperatura_control)
+    {
+        while (1)
+            ;
+    }
+
+    mailbox_modifica = xQueueCreate(
+            1, sizeof(uint8_t));
+    if (NULL == mailbox_modifica)
+    {
+        while(1)
+            ;
+    }
+
+    //Se crea, Añadimos las dos colas al grupo de colas
+    if (xQueueAddToSet(cola_prod_cons_1, grupo_colas) != pdPASS)
+    {
+        while (1)
+            ;
+    }
+    if (xQueueAddToSet(cola_prod_cons_2, grupo_colas) != pdPASS)
+    {
+        while (1)
+            ;
+    }
+    //================================================================
+    // CREACIÓN DEL GRUPO DE FLAGS
+    //================================================================
+    FlagEvento = xEventGroupCreate();
+    if (NULL == FlagEvento)
+    {
+        while (1)
+            ;
+    }
+
+    FlagAnomalia = xEventGroupCreate();
+    if (FlagAnomalia == NULL)
+    {
+        while (1)
+            ;
+    }
+    FlagBoton = xEventGroupCreate();
+    if (FlagBoton == NULL)
+    {
+        while (1)
+            ;
+    }
+
+    xEventGroupSetBits(FlagBoton, BOTON_DESACTIVADO); //activa el flag de evento
+
+    FlagObjetivo = xEventGroupCreate();
+    if (FlagObjetivo == NULL)
+    {
+        while (1)
+            ;
+    }
+    xEventGroupSetBits(FlagObjetivo, OBJETIVO_NO_CUMPLIDO); // activamos para que las productoras funcionen
+
+    FlagTrazas = xEventGroupCreate(); // Grupo de eventos para APARTADO G) TRAZA Y DEPURACIÓN DE LA APLICACIÓN
+    if (FlagTrazas == NULL)
+    {
+        while (1)
+            ;
+    }
+
+    //================================================================
+    // CREACION DE SEMÁFOROS
+    //================================================================
+    semaforo_prod_1 = xSemaphoreCreateBinary();
+    if (semaforo_prod_1 == NULL)
+    {
+        while (1)
+            ;
+    }
+    semaforo_prod_2 = xSemaphoreCreateBinary();
+    if (semaforo_prod_2 == NULL)
+    {
+        while (1)
+            ;
+    }
+
+    //================================================================
+    // CREACIÓN DE TIMER
+    //================================================================
+
+    timerApagadoTemperatura = xTimerCreate("Cuenta30seg", pdMS_TO_TICKS(1000),
+                                           pdTRUE, (void*) 30, Timer1CallBack); //Contará 30 veces 1 segundo
+    if (timerApagadoTemperatura == NULL)
+    {
+        while (1)
+            ;
+    }
+
+    timerTresSeg = xTimerCreate("Cuenta3seg", pdMS_TO_TICKS(500), pdTRUE,
+                                (void*) 6, Timer2CallBack); //Cuenta 500 ms 6 veces = 3 segundos para resolver temperatura crítica
+    if (timerTresSeg == NULL)
+    {
+        while (1)
+            ;
+    }
+    //Se autorenueva
+    timerParada = xTimerCreate("Cuenta20seg_Parada", pdMS_TO_TICKS(1000),
+                               pdTRUE, (void *)20, Timer3CallBack); //Cuenta 20 veces x  1 segundo = 20 segundo, para enviar info del timer a Qt.
+
+    //================================================================
+    //======CREACIÓN DE TAREAS========================================
+    //================================================================
+
+    if ((xTaskCreate(tareaControl, "Control", 512, NULL,
+    tskIDLE_PRIORITY + 1, //Revisar el tema de la prioridad porque controla a las demás.
+                     &handleControl) != pdPASS))
+    {
         while (1)
         {
-//Si llego aqui es que algo raro ha pasado
+
         }
     }
+
+    if ((xTaskCreate(productoraGenerica, "Productor1", 128, &prod1,
+    tskIDLE_PRIORITY + 1,
+                     &handleProductora1) != pdPASS))
+    {
+        while (1)
+        {
+
+        }
+    }
+
+    if ((xTaskCreate(productoraGenerica, "Productor2", 128, &prod2,
+    tskIDLE_PRIORITY + 1,
+                     &handleProductora2) != pdPASS))
+    {
+        while (1)
+        {
+
+        }
+    }
+
+    if ((xTaskCreate(consumidora1, "Consumidor", 128, NULL,
+    tskIDLE_PRIORITY + 1,
+                     &handleConsumidora) != pdPASS))
+    {
+        while (1)
+        {
+
+        }
+    }
+
+    if ((xTaskCreate(temperatura, "Temperatura", 128, NULL,
+    tskIDLE_PRIORITY + 1,
+                     &handleTemperatura) != pdPASS))
+    {
+        while (1)
+        {
+
+        }
+    }
+
+    //================================================================
+    //======FIN DE TAREAS=============================================
+    //================================================================
+
+    //
+    // Pone en marcha el planificador. La llamada NO tiene retorno
+    //
+
+    vTaskStartScheduler(); //el RTOS habilita las interrupciones al entrar aqui, asi que no hace falta habilitarlas
+
+    //De la funcion vTaskStartScheduler no se sale nunca... a partir de aqui pasan a ejecutarse las tareas.
+    while (1)
+    {
+//Si llego aqui es que algo raro ha pasado
+    }
+}
 
 //-------------------------------------------
 //-----RUTINAS DE INTERRUPCIONES-------------
 //-------------------------------------------
 
-    void ADC_Handler(void)
+void ADC_Handler(void)
+{
+    ADCIntClear(ADC0_BASE, 1); //bajar flag
+    uint32_t ui32ADC0Value[4];
+    // Leemos los datos del secuenciador
+    ADCSequenceDataGet(ADC0_BASE, 1, ui32ADC0Value);
+
+    PARAM_MENSAJE_TEMPERATURA datos_temp;
+    datos_temp.ambiente = ui32ADC0Value[0];
+    datos_temp.soldadura = ui32ADC0Value[1];
+
+    BaseType_t higherPriorityTaskWoken = pdFALSE;
+    xQueueOverwriteFromISR(mailbox_temperatura, &datos_temp,
+                           &higherPriorityTaskWoken);
+    portEND_SWITCHING_ISR(higherPriorityTaskWoken);
+
+}
+
+void GPIOF_Handler(void)
+{
+    int32_t status = GPIOIntStatus(GPIO_PORTF_BASE, true);
+    //Bajamos el flag
+    GPIOIntClear(GPIO_PORTF_BASE, true);
+    BaseType_t higherPriorityTaskWoken = pdFALSE;
+    if ((status & RIGHT_BUTTON) != 0)
     {
-        ADCIntClear(ADC0_BASE, 1); //bajar flag
-        uint32_t ui32ADC0Value[2];
-        // Leemos los datos del secuenciador
-        ADCSequenceDataGet(ADC0_BASE, 1, ui32ADC0Value);
-
-        PARAM_MENSAJE_TEMPERATURA datos_temp;
-        datos_temp.ambiente = ui32ADC0Value[0];
-        datos_temp.soldadura = ui32ADC0Value[1];
-
-        BaseType_t higherPriorityTaskWoken = pdFALSE;
-        xQueueOverwriteFromISR(mailbox_temperatura, &datos_temp,
-                               &higherPriorityTaskWoken);
-        portEND_SWITCHING_ISR(higherPriorityTaskWoken);
-
-    }
-
-    void GPIOF_Handler(void)
-    {
-        int32_t status = GPIOIntStatus(GPIO_PORTF_BASE,true);
-        //Bajamos el flag
-        GPIOIntClear(GPIO_PORTF_BASE,true);
-        BaseType_t higherPriorityTaskWoken = pdFALSE;
-        if ((status & RIGHT_BUTTON) != 0)
+        if (GPIOPinRead(GPIO_PORTF_BASE, RIGHT_BUTTON) == 0)
         {
-            if (GPIOPinRead(GPIO_PORTF_BASE, RIGHT_BUTTON) == 0)
-            {
-           //PRESIONADO
-            MAP_GPIOIntTypeSet(GPIO_PORTF_BASE,RIGHT_BUTTON , GPIO_RISING_EDGE);
-            }
-            else
-            {
-                //LIBREADO
-                //volver a detectar pulsación
-                MAP_GPIOIntTypeSet(GPIO_PORTF_BASE,RIGHT_BUTTON , GPIO_FALLING_EDGE);
-                xEventGroupSetBitsFromISR(FlagAnomalia, TIME_STOP,&higherPriorityTaskWoken);
-
-            }
+            //PRESIONADO
+            MAP_GPIOIntTypeSet(GPIO_PORTF_BASE, RIGHT_BUTTON, GPIO_RISING_EDGE);
         }
-        portEND_SWITCHING_ISR(higherPriorityTaskWoken);
-    }
-
-    void TIMER2A_Handler (void)
-    {
-        TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
-        BaseType_t higherPriorityTaskWoken = pdFALSE;
-        xEventGroupSetBitsFromISR(FlagBoton, BOTON_DESACTIVADO,&higherPriorityTaskWoken);
-        portEND_SWITCHING_ISR(higherPriorityTaskWoken);
-    }
-
-
-    static void Timer1CallBack(TimerHandle_t  xTimer)
-    {
-        uint32_t  ui32_restante;
-
-        ui32_restante = (uint32_t) pvTimerGetTimerID(xTimer); // leo cuantas paradas le queda
-
-        if (ui32_restante > 0) // Tiene que seguir corriendo, no han pasado los 30 segundoos
+        else
         {
-            ui32_restante -- ; // disminuye el contador
+            //LIBREADO
+            //volver a detectar pulsación
+            MAP_GPIOIntTypeSet(GPIO_PORTF_BASE, RIGHT_BUTTON,
+                               GPIO_FALLING_EDGE);
+            xEventGroupSetBitsFromISR(FlagAnomalia, TIME_STOP,
+                                      &higherPriorityTaskWoken);
 
         }
-        vTimerSetTimerID(xTimer, (void *)ui32_restante); // actualizamos el valor del timer
-        xEventGroupSetBits(FlagAnomalia, TEMP_HAZARDOUS); //activa el flag
-
-        if(ui32_restante == 0)
-        {
-            xTimerStop(xTimer, 0); //para el reloj
-        }
     }
+    portEND_SWITCHING_ISR(higherPriorityTaskWoken);
+}
 
-    static void Timer2CallBack(TimerHandle_t xTimer)
+void TIMER2A_Handler(void)
+{
+    TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
+    BaseType_t higherPriorityTaskWoken = pdFALSE;
+    xEventGroupSetBitsFromISR(FlagBoton, BOTON_DESACTIVADO,
+                              &higherPriorityTaskWoken);
+    portEND_SWITCHING_ISR(higherPriorityTaskWoken);
+}
+
+
+//==========================================================================================
+// Reloj que cuenta 30 segundos para apagar el SISTEMA si estamos en TEMPERATURA CRÍTICA
+static void Timer1CallBack(TimerHandle_t xTimer)
+{
+    uint32_t ui32_restante;
+
+    ui32_restante = (uint32_t) pvTimerGetTimerID(xTimer); // leo cuantas paradas le queda
+
+    if (ui32_restante > 0) // Tiene que seguir corriendo, no han pasado los 30 segundoos
     {
-        uint32_t ui32_restante;
+        ui32_restante--; // disminuye el contador
 
-        ui32_restante = (uint32_t) pvTimerGetTimerID(xTimer);
-        if (ui32_restante > 0) //pasar de 3 a 0
-        {
-            ui32_restante --;
-        }
-        vTimerSetTimerID(xTimer, (void *)ui32_restante);
-        xEventGroupSetBits(FlagAnomalia, TEMP_HAZARDOUS_OFF); // activo tarea para comprobar estar por debajo de 400 grados
-
-        if (ui32_restante == 0)
-        {
-            xTimerStop(xTimer, 0);
-        }
     }
+    vTimerSetTimerID(xTimer, (void*) ui32_restante); // actualizamos el valor del timer
+    xEventGroupSetBits(FlagAnomalia, TEMP_HAZARDOUS); //activa el flag
+
+    if (ui32_restante == 0)
+    {
+        xTimerStop(xTimer, 0); //para el reloj
+    }
+}
+
+
+//==========================================================================================
+// Reloj que cuenta 3 segundos para poder verificar si la temperatura crítica a bajado
+static void Timer2CallBack(TimerHandle_t xTimer)
+{
+    uint32_t ui32_restante;
+
+    ui32_restante = (uint32_t) pvTimerGetTimerID(xTimer);
+    if (ui32_restante > 0) //pasar de 3 a 0
+    {
+        ui32_restante--;
+    }
+    vTimerSetTimerID(xTimer, (void*) ui32_restante);
+    xEventGroupSetBits(FlagAnomalia, TEMP_HAZARDOUS_OFF); // activo tarea para comprobar estar por debajo de 400 grados
+
+    if (ui32_restante == 0)
+    {
+        xTimerStop(xTimer, 0);
+    }
+}
+
+
+//==========================================================================================
+// Reloj que cuenta los 20 segundos de parada del sistema para actualizarlos en QT
+static void Timer3CallBack(TimerHandle_t xTimer)
+{
+    uint32_t ui32_restante;
+    ui32_restante = (uint32_t) pvTimerGetTimerID(xTimer);
+    if (ui32_restante > 0) //Entre 20 y 1
+    {
+        ui32_restante --;
+    }
+    vTimerSetTimerID(xTimer, (void *) ui32_restante); // Actualizamos el ID del timer
+
+    if (ui32_restante == 0)
+    {
+        xTimerStop(xTimer,0);
+        vTimerSetTimerID (timerParada, (void *) 20); // Actualizo el ID del timer a 20 cuentas de 1 seg.
+    }
+
+}
 

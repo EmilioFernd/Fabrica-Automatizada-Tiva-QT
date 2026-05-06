@@ -169,13 +169,13 @@ void GUIPanel::readRequest()
                         break;
 
                     case MENSAJE_ANOMALIAS:
+                    {
                         PARAM_MENSAJE_ANOMALIAS parametro;
                         if(check_and_extract_message_param(ptrtoparam, tam, sizeof(parametro), &parametro)>0)
                         {
-                            ui->LEDblockProd1->setChecked(parametro.bloqueado_1);
-                            ui->LEDblockProd2->setChecked(parametro.bloqueado_2);
                             ui->LEDtempHazardous->setChecked(parametro.temp_harzardous);
                             ui->counter_temp_hazardous->setValue(parametro.cuenta_atras);
+                            ui->progressBar->setValue(parametro.temp_time_stop);
 
                             //chequear el aviso crítico de temperatura
                             if(parametro.war_temp_critico == 1)
@@ -188,7 +188,19 @@ void GUIPanel::readRequest()
 
                             }
                         }
+                    }
                         break;
+
+
+                    case MENSAJE_BLOQUEO:
+                        PARAM_MENSAJE_BLOQUEO parametro;
+                        if(check_and_extract_message_param(ptrtoparam, tam, sizeof(parametro), &parametro)>0)
+                        {
+                            ui->LEDblockProd1->setChecked(parametro.bloqueado_1);
+                            ui->LEDblockProd2->setChecked(parametro.bloqueado_2);
+                        }
+                        break;
+
 
                     default:
                         //Este error lo notifico mediante la señal statusChanged
