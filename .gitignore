@@ -19,4 +19,5 @@ QT_code/Release/
 *.bin
 *.hex
 *.map
+*.url
 
