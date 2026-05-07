@@ -21,3 +21,10 @@ QT_code/Release/
 *.map
 *.url
 
+# Eclipse / Code Composer Studio local settings
+.settings/
+.metadata/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
