@@ -185,6 +185,10 @@ void GUIPanel::readRequest()
                                 criticoPopUp.show();
 
                                 //Deshabilitar elementos
+                                ui->produccion->setEnabled(false);
+                                ui->temperaturas->setEnabled(false);
+                                ui->objetivos->setEnabled(false);
+                                ui->alarmas->setEnabled(false);
 
                             }
                         }

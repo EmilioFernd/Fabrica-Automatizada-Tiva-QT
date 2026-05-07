@@ -57,7 +57,11 @@ volatile uint8_t g_ui8_prod1_block = 0; //Preguntar si se puede detectar el bloq
 volatile uint8_t g_ui8_prod2_block = 0;  //uxSemaphoreGetCount
 
 SemaphoreHandle_t mutexUSB, mutexUART, mutexRGB; // Para proteccion del canal USB y el caal UART -terminal-, ya que ahora lo van a usar varias tareas distintas
-QueueHandle_t cola_prod_cons_1; // Cola para enviar el ID
+
+//=====
+// COLAS
+//=====
+QueueHandle_t cola_prod_cons_1; // Cola para COMUNICAR productora y consumidora
 QueueHandle_t cola_prod_cons_2;
 
 QueueSetHandle_t grupo_colas;
@@ -414,7 +418,6 @@ static portTASK_FUNCTION(tareaControl, pvParameters)
             TimerEnable(TIMER2_BASE, TIMER_A); //Timer hardware que cuenta 20 segundos
 
             //Actualización del Timer en QT, mediante Timer Software
-
             xTimerStart(timerParada,0);
 
 

@@ -63,7 +63,7 @@
     <attribute name="title">
      <string>Tab 2</string>
     </attribute>
-    <widget class="QGroupBox" name="Temperaturas">
+    <widget class="QGroupBox" name="temperaturas">
      <property name="geometry">
       <rect>
        <x>640</x>
@@ -217,7 +217,7 @@
       </property>
      </widget>
     </widget>
-    <widget class="QGroupBox" name="groupBox_2">
+    <widget class="QGroupBox" name="produccion">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -500,7 +500,7 @@ TIPO 2</string>
       </property>
      </widget>
     </widget>
-    <widget class="QGroupBox" name="groupBox_3">
+    <widget class="QGroupBox" name="alarmas">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -868,7 +868,7 @@ TIPO 2</string>
       </widget>
      </widget>
     </widget>
-    <widget class="QGroupBox" name="groupBox_6">
+    <widget class="QGroupBox" name="objetivos">
      <property name="geometry">
       <rect>
        <x>640</x>
