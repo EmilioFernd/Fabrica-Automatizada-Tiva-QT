@@ -27,4 +27,5 @@ QT_code/Release/
 
 # Sistema operativo
 .DS_Store
-Thumbs.db
+Thumbs.db*.pro.user
+*.pro.user
